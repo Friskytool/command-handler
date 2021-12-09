@@ -1,0 +1,1 @@
+gcloud functions deploy squidbot
