@@ -1,4 +1,9 @@
+__all__ = ("Lazy",)
+
 class Lazy(object):
+    """
+    Lazily construct objects to speed up cold startup times
+    """
     def __init__(self, fn, *fn_args, **fn_kwargs):
         self.fn = fn
         self.fn_args = fn_args

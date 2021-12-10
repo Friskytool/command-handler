@@ -1,5 +1,11 @@
 from enum import Enum 
 
+__all__ = (
+    "InteractionType",
+    "ApplicationCommandType",
+    "ApplicationCommandOptionType",
+)
+
 class InteractionType(Enum):
     PING = 1
     APPLICATION_COMMAND = 2
