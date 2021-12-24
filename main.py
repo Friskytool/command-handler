@@ -13,16 +13,46 @@
 # limitations under the License.
 
 import functions_framework
-from flask import abort, jsonify
+from flask import abort, jsonify, redirect
 from nacl.signing import VerifyKey
 from nacl.exceptions import BadSignatureError
 import os
 from squid.models.interaction import Interaction, ApplicationCommand
 from squid.models.enums import InteractionType
-from squid.models.functions import Lazy
-from squid.bot import SquidBot, setup_bot
+from squid.models.functions import lazy, Lazy
+from squid.bot import SquidBot
+from pymongo import MongoClient
 
-lazy_bot = Lazy(setup_bot, os.getenv)
+
+@lazy
+def setup_db():
+    client = MongoClient(os.getenv("MONGO_URI"))
+
+    if bool(os.getenv("PRODUCTION")):
+        db = client.Main
+    else:
+        db = client.Test
+    return db
+
+
+@SquidBot.from_lazy()
+def lazy_bot(cls=SquidBot):
+    bot = cls(
+        public_key=os.getenv("PUBLIC_KEY"),
+        primary_color=0xEA81AE,
+        secondary_color=0xEA81AE,
+        error_color=0xCC1100,
+        squid_db=setup_db,
+    )
+    import plugins
+
+    plugins.setup(bot)
+
+    @bot.check
+    def check_permissions(ctx):
+        return True
+
+    return bot
 
 
 @functions_framework.http
@@ -36,6 +66,9 @@ def squidbot(request):
         Response object using `make_response`
         <https://flask.palletsprojects.com/en/1.1.x/api/#flask.make_response>.
     """
+
+    if request.method == "GET":
+        return redirect("https://squid.pink/", code=301)
 
     if request.method != "POST":
         return abort(405)
@@ -55,8 +88,6 @@ def squidbot(request):
         return abort(401, "invalid request signature")
     else:
         interaction = Interaction.from_json(request.json)
-
-        print(interaction)
 
         if interaction.type == InteractionType.PING:
             return jsonify({"type": 1})

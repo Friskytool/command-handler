@@ -1,8 +1,11 @@
 from typing import List, Tuple, Union, ForwardRef, Literal, TypeVar, Any, Dict, Iterable
 import sys
+import bson
 
 PY_310 = sys.version_info >= (3, 10)
 
+def db_safe(*args, **kwargs):
+    return bson.int64.Int64(*args, **kwargs)  # mongodb cuts a few off the top
 
 def flatten_literal_params(parameters: Iterable[Any]) -> Tuple[Any, ...]:
     params = []

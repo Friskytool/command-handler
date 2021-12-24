@@ -1,10 +1,10 @@
 from functools import wraps
-from ._types import _BaseCommand
+from squid._types import _BaseCommand
 from typing import Callable, Any, Optional, List, Union, Dict, Tuple, T, Type, TypeVar
 import inspect
-from .utils import evaluate_annotation
+from squid.utils import evaluate_annotation
 from .context import SquidContext
-from .errors import ArgumentParsingError
+from squid.errors import ArgumentParsingError
 from .converter import get_converter
 import functools
 
@@ -296,7 +296,6 @@ class SquidCommand(_BaseCommand):
 
 def command(
     *,
-    name: str = None,
     cls: Type[SquidCommand] = None,
     **attrs: Any,
 ) -> Callable[[Type[SquidCommand]], Type[SquidCommand]]:
@@ -331,6 +330,6 @@ def command(
             raise TypeError("Callback is already a command.")
 
         attrs.setdefault("name", func.__name__)
-        return cls(func, **attrs)
+        return functools.wraps(func)(cls(func, **attrs))
 
     return decorator

@@ -1,4 +1,5 @@
 from .enums import InteractionType, ApplicationCommandType, ApplicationCommandOptionType
+from .member import Member, User
 
 __all__ = ("Interaction", "ApplicationCommand", "ApplicationCommandOption")
 
@@ -48,8 +49,7 @@ class Interaction(object):
 
         return getattr(
             cls,
-            cls.CONSTRUCTORS.get(typ, cls.default_constructor),
-            "default_constructor",
+            cls.CONSTRUCTORS.get(typ, "default_constructor"),
         )(data)
 
     @staticmethod
@@ -61,8 +61,8 @@ class Interaction(object):
             data=data.get("data", {}),
             guild_id=data.get("guild_id", 0),
             channel_id=data.get("channel_id", 0),
-            member=data.get("member", 0),
-            user=data.get("user"),
+            member=(Member.from_json(data["member"]) if data.get("member") else None),
+            user=(User.from_json(data["user"]) if data.get("user") else None),
             token=data["token"],
             version=data["version"],
             message=data.get("message"),
@@ -98,44 +98,35 @@ class ApplicationCommand(object):
 
 
 class ApplicationCommandOption(object):
-    def __init__(
-        self,
-        type,
-        name,
-        description,
-        required,
-        choices,
-        options,
-        channel_types,
-        min_value,
-        max_value,
-        autocomplete,
-    ):
-        self.type = type
+    def __init__(self, *, name, type, value, options, focused):
         self.name = name
-        self.description = description
-        self.required = required
-        self.choices = choices
+        self.type = type
+        self.value = value
         self.options = options
-        self.channel_types = channel_types
-        self.min_value = min_value
-        self.max_value = max_value
-        self.autocomplete = autocomplete
+        self.focused = focused
 
     def __repr__(self):
-        return f"<ApplicationCommandOption type={self.type} name={self.name} description={self.description} required={self.required} choices={self.choices} options={self.options} channel_types={self.channel_types} min_value={self.min_value} max_value={self.max_value} autocomplete={self.autocomplete}>"
+        return f"<ApplicationCommandOption name={self.name} type={self.type} value={self.value} options={self.options} focused={self.focused}>"
 
     @classmethod
     def from_json(cls, data):
         return cls(
-            type=data["type"],
             name=data["name"],
-            description=data["description"],
-            required=data["required"],
-            choices=data["choices"],
-            options=data["options"],
-            channel_types=data["channel_types"],
-            min_value=data.get("min_value", None),
-            max_value=data.get("max_value", None),
-            autocomplete=data.get("autocomplete", False),
+            type=ApplicationCommandOptionType(data["type"]),
+            value=data.get("value"),
+            options=map(cls.from_json, data.get("options", [])),
+            focused=data.get("focused", False),
         )
+
+
+class ApplicationCommandOptionChoice(object):
+    def __init__(self, name: str, value: str):
+        self.name = name
+        self.value = value
+
+    def __repr__(self):
+        return f"<ApplicationCommandOptionChoice name={self.name} value={self.value}>"
+
+    @classmethod
+    def from_json(cls, data: dict):
+        return cls(**data)

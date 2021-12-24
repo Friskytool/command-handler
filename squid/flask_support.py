@@ -10,7 +10,11 @@ def flask_compat(f):
         embed = f(*args, **kwargs)
 
         if not isinstance(embed, Embed):
-            raise TypeError("Response must be an Embed object")
+            raise TypeError(
+                "Response must be an Embed object but recieved {}: ({})".format(
+                    type(embed), embed.__repr__()
+                )
+            )
 
         r = jsonify({"type": 4, "data": {"embeds": [embed.to_dict()]}})
         print(r)
