@@ -1,7 +1,7 @@
 from squid.bot.errors import SquidError
 from squid.models.enums import ApplicationCommandOptionType
 from squid.models.functions import Lazy
-from squid.models.interaction import ApplicationCommandOption
+from squid.models.interaction import ApplicationCommandOption, InteractionResponse
 from squid.models.member import Member, User
 from ..models import Interaction
 
@@ -25,6 +25,8 @@ class SquidContext(object):
 
         self._token = interaction.token
         self._message = interaction.message
+
+        self.respond = InteractionResponse.channel_message
 
     @property
     def token(self):

@@ -4,8 +4,7 @@ from typing import Callable, Optional
 from expr.errors import Gibberish, NumberOverflow, UnknownPointer
 
 from squid.bot.errors import CheckFailure, CommandFailed, SquidError
-from squid.models.check import Check
-from squid.models.interaction import Interaction
+from squid.models.interaction import Interaction, InteractionResponse
 from .command import SquidCommand
 from discord import Embed, Color
 from .plugin import SquidPlugin
@@ -93,10 +92,12 @@ class SquidBot(object):
         return self._commands.pop(command_name, None)
 
     def unknown_command(self, interaction: Interaction) -> Embed:
-        return Embed(
-            title="Unknown Interaction",
-            description="Unknown interaction: {}".format(interaction.data.name),
-            color=Color.red(),
+        return InteractionResponse.channel_message(
+            embed=Embed(
+                title="Unknown Interaction",
+                description="Unknown interaction: {}".format(interaction.data.name),
+                color=Color.red(),
+            )
         )
 
     def get_context(self, interaction, cls=SquidContext):
@@ -104,24 +105,26 @@ class SquidBot(object):
 
     def on_error(self, ctx: SquidContext, error: Exception):
         if isinstance(error, NumberOverflow):
-            return Embed(
+            embed = Embed(
                 title="Number Overflow",
                 description="The number you entered is too large.",
                 color=ctx.bot.colors["error"],
             )
-        if isinstance(error, (UnknownPointer, Gibberish)):
-            return Embed(
+        elif isinstance(error, (UnknownPointer, Gibberish)):
+            embed = Embed(
                 title="Gibberish",
                 description=f"```cs\n{error.friendly}\n```",
                 color=ctx.bot.colors["error"],
             )
-        return Embed(
-            title="".join(
-                [(" " if i.isupper() else "") + i for i in error.__class__.__name__]
-            ),
-            description=f"```cs\n[ERROR] {str(error)}\n```".replace("'", "′"),
-            color=self.colors["error"],
-        )
+        else:
+            embed = Embed(
+                title="".join(
+                    [(" " if i.isupper() else "") + i for i in error.__class__.__name__]
+                ),
+                description=f"```cs\n[ERROR] {str(error)}\n```".replace("'", "′"),
+                color=self.colors["error"],
+            )
+        return InteractionResponse.channel_message(embed=embed, ephemeral=True)
 
     def invoke(self, ctx: SquidContext) -> Optional[Embed]:
         try:
@@ -133,8 +136,6 @@ class SquidBot(object):
                 return self.unknown_command(ctx.interaction)
         except SquidError as e:
             return self.on_error(ctx, e)
-        else:
-            pass  # command completion code
 
     def can_run(self, ctx: SquidContext) -> bool:
         return all(check(ctx) for check in self._checks) if self._checks else True
@@ -143,10 +144,10 @@ class SquidBot(object):
         self.add_check(func)
         return func
 
-    def add_check(self, func: Check) -> None:
+    def add_check(self, func: Callable) -> None:
         self._checks.append(func)
 
-    def remove_check(self, func: Check) -> None:
+    def remove_check(self, func: Callable) -> None:
         try:
             self._checks.remove(func)
         except ValueError:
