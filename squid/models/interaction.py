@@ -195,11 +195,15 @@ class InteractionResponse(object):
         tts: bool = False,
         content: str = None,
         embed: Embed = None,
-        embeds: List[Embed] = [],
+        embeds: List[Embed] = None,
         allowed_mentions: AllowedMentions = None,
         ephemeral: bool = False,
-        components: List[Component] = [],
+        components: List[Component] = None,
     ):
+        if embeds is None:
+            embeds = []
+        if components is None:
+            components = []
         return cls(
             InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
             tts=tts,
@@ -217,11 +221,15 @@ class InteractionResponse(object):
         tts: bool = False,
         content: str = None,
         embed: Embed = None,
-        embeds: List[Embed] = [],
+        embeds: List[Embed] = None,
         allowed_mentions: AllowedMentions = None,
         ephemeral: bool = False,
-        components: List[Component] = [],
+        components: List[Component] = None,
     ):
+        if embeds is None:
+            embeds = []
+        if components is None:
+            components = []
         return cls(
             InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
             tts=tts,
@@ -239,11 +247,15 @@ class InteractionResponse(object):
         tts: bool = False,
         content: str = None,
         embed: Embed = None,
-        embeds: List[Embed] = [],
+        embeds: List[Embed] = None,
         allowed_mentions: AllowedMentions = None,
         ephemeral: bool = False,
-        components: List[Component] = [],
+        components: List[Component] = None,
     ):
+        if embeds is None:
+            embeds = []
+        if components is None:
+            components = []
         return cls(
             InteractionResponseType.DEFERRED_UPDATE_MESSAGE,
             tts=tts,
@@ -261,11 +273,15 @@ class InteractionResponse(object):
         tts: bool = False,
         content: str = None,
         embed: Embed = None,
-        embeds: List[Embed] = [],
+        embeds: List[Embed] = None,
         allowed_mentions: AllowedMentions = None,
         ephemeral: bool = False,
-        components: List[Component] = [],
+        components: List[Component] = None,
     ):
+        if embeds is None:
+            embeds = []
+        if components is None:
+            components = []
         return cls(
             InteractionResponseType.UPDATE_MESSAGE,
             tts=tts,
