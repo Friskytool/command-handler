@@ -1,4 +1,5 @@
 from discord import Embed, user
+from squid.models import InteractionResponse
 from squid.bot import command, SquidPlugin
 from squid.utils import db_safe
 import expr
@@ -37,11 +38,12 @@ class InviteCounting(SquidPlugin):
                     len(data.get("leaves_data")) * -1,
                 ]
             )
-            return Embed(
-                description="\n".join(
-                    [
-                        i.strip()
-                        for i in f"""
+            return ctx.respond(
+                embed=Embed(
+                    description="\n".join(
+                        [
+                            i.strip()
+                            for i in f"""
         ```diff
         + regular: {data.get('regular',0):,}
         + bonus: {data.get('bonus',0):,}
@@ -49,12 +51,13 @@ class InviteCounting(SquidPlugin):
         - leaves: {len(data.get('leaves_data')):,}
         ```
         """.split(
-                            "\n"
-                        )
-                    ]
-                ),
-                color=self.bot.colors["primary"],
-            ).set_author(name=f"{y} have {invites} invites!")
+                                "\n"
+                            )
+                        ]
+                    ),
+                    color=self.bot.colors["primary"],
+                ).set_author(name=f"{y} have {invites} invites!")
+            )
 
 
 def setup(bot):

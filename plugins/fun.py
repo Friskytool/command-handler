@@ -188,8 +188,10 @@ class Fun(SquidPlugin):
         """
 
         res = morse_translate(message)[:2000]
-        return Embed(description=res, color=ctx.me.color).set_author(
-            name=message, icon_url=ctx.author.avatar_url
+        return ctx.respond(
+            embed=Embed(description=res, color=ctx.me.color).set_author(
+                name=message, icon_url=ctx.author.avatar_url
+            )
         )
 
     @command()
@@ -200,7 +202,7 @@ class Fun(SquidPlugin):
         if _max < _min:
             _max, _min = _min, _max
 
-        return f"I rolled a **{random.randint(_min, _max)}**"
+        return ctx.respond(content=f"I rolled a **{random.randint(_min, _max)}**")
 
     @command(name="coinflip", aliases=["cf"])
     def coinflip(self, ctx, choice: str = "heads"):
@@ -208,15 +210,19 @@ class Fun(SquidPlugin):
 
         if c == choice.lower():
 
-            return Embed(
-                title="Coinflip",
-                description=f"It landed on **{c.title()}**!\n```diff\n+ You won!\n```",
-                color=self.bot.colors["primary"],
+            return ctx.respond(
+                embed=Embed(
+                    title="Coinflip",
+                    description=f"It landed on **{c.title()}**!\n```diff\n+ You won!\n```",
+                    color=self.bot.colors["primary"],
+                )
             )
-        return Embed(
-            title="Coinflip",
-            description=f"It landed on **{c.title()}**!\n```diff\n- You lost!\n```",
-            color=self.bot.colors["secondary"],
+        return ctx.respond(
+            embed=Embed(
+                title="Coinflip",
+                description=f"It landed on **{c.title()}**!\n```diff\n- You lost!\n```",
+                color=self.bot.colors["secondary"],
+            )
         )
 
     @command(name="choose")
@@ -230,8 +236,10 @@ class Fun(SquidPlugin):
         else:
             args = shlex.split(choices)
 
-        return Embed(
-            description=f"I choose `{random.choice(args)}`", color=Color.green()
+        return ctx.respond(
+            embed=Embed(
+                description=f"I choose `{random.choice(args)}`", color=Color.green()
+            )
         )
 
     @command(name="percent")
@@ -245,9 +253,11 @@ class Fun(SquidPlugin):
             colorc = Color.red()
         elif percent < 67:
             colorc = Color(0xFFD300)
-        return Embed(
-            description=f"I calculate **{thing}** as {percent}% {adjective}!",
-            color=colorc,
+        return ctx.respond(
+            embed=Embed(
+                description=f"I calculate **{thing}** as {percent}% {adjective}!",
+                color=colorc,
+            )
         )
 
     @command(name="8ball")
@@ -257,8 +267,10 @@ class Fun(SquidPlugin):
         limit = 200
         question = question[:limit] if question is str else question
 
-        return Embed(description=choice, color=Color.blue()).set_author(
-            name=question or ctx.author.display_name, icon_url=ctx.author.avatar_url
+        return ctx.respond(
+            embed=Embed(description=choice, color=Color.blue()).set_author(
+                name=question or ctx.author.display_name, icon_url=ctx.author.avatar_url
+            )
         )
 
     @command(name="programmer8ball", aliases=["p8ball"])
@@ -268,8 +280,10 @@ class Fun(SquidPlugin):
         limit = 200
         question = question[:limit] if question is str else question
 
-        return Embed(description=choice, color=Color.blue()).set_author(
-            name=question or ctx.author.display_name, icon_url=ctx.author.avatar_url
+        return ctx.respond(
+            embed=Embed(description=choice, color=Color.blue()).set_author(
+                name=question or ctx.author.display_name, icon_url=ctx.author.avatar_url
+            )
         )
 
 

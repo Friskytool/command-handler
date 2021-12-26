@@ -12,10 +12,12 @@ class Math(SquidPlugin):
 
         result = expr.evaluate(expression, max_safe_number=9e99)
 
-        return Embed(
-            description=f"```js\n= {result:,}\n```",
-            color=self.bot.colors["primary"],
-        ).set_author(name=expression, icon_url=ctx.author.avatar_url)
+        return ctx.respond(
+            embed=Embed(
+                description=f"```js\n= {result:,}\n```",
+                color=self.bot.colors["primary"],
+            ).set_author(name=expression, icon_url=ctx.author.avatar_url)
+        )
 
 
 def setup(bot):
