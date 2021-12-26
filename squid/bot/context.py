@@ -36,8 +36,7 @@ class SquidContext(object):
 
         if self._user["member"]:
             return self._user["member"]
-        else:
-            return self._user["user"]
+        return self._user["user"]
 
     # you should probably never do this
     def __getattribute__(self, name: str):
@@ -67,10 +66,9 @@ class SquidContext(object):
                 user = resolved.get("users", {}).get(_id, None)
                 if member and user:
                     return Member.from_json({**member, "user": user})
-                elif member:
+                if member:
                     return Member.from_json(member)
-                else:
-                    return User.from_json(user)
+                return User.from_json(user)
 
             else:
                 # TODO: Finish up the rest of the types
@@ -108,8 +106,7 @@ class SquidContext(object):
 
         if i.type in cast:
             return cast[i.type](i.value)
-        else:
-            return i.value
+        return i.value
 
     @property
     def kwargs(self) -> dict:
@@ -131,12 +128,11 @@ class SquidContext(object):
             # handling errors
             if hasattr(command, "on_error"):
                 return command.on_error(self, e)
-            elif command.parent and hasattr(command.parent, "on_error"):
+            if command.parent and hasattr(command.parent, "on_error"):
                 return command.parent.on_error(self, e)
-            elif hasattr(self.bot, "on_error"):
+            if hasattr(self.bot, "on_error"):
                 return self.bot.on_error(self, e)
-            else:
-                raise SquidError(e)
+            raise SquidError(e)
 
     def send(self, *a, **k):
         with self.bot.webhook(self.application_id, self.token) as hook:

@@ -213,12 +213,11 @@ class Fun(SquidPlugin):
                 description=f"It landed on **{c.title()}**!\n```diff\n+ You won!\n```",
                 color=self.bot.colors["primary"],
             )
-        else:
-            return Embed(
-                title="Coinflip",
-                description=f"It landed on **{c.title()}**!\n```diff\n- You lost!\n```",
-                color=self.bot.colors["secondary"],
-            )
+        return Embed(
+            title="Coinflip",
+            description=f"It landed on **{c.title()}**!\n```diff\n- You lost!\n```",
+            color=self.bot.colors["secondary"],
+        )
 
     @command(name="choose")
     def choose(self, ctx, *, choices):

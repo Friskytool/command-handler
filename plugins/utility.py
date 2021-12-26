@@ -69,16 +69,15 @@ class Utility(SquidPlugin):  # todo fill in cog
                     title="Set AFK",
                     description=f"I set your afk to `{message}`",
                 )
-            else:
-                db.AfkStorage.find_one_and_delete(
-                    {"id": db_safe(ctx.author.id), "doctype": "user_storage"}
-                )
+            db.AfkStorage.find_one_and_delete(
+                {"id": db_safe(ctx.author.id), "doctype": "user_storage"}
+            )
 
-                return Embed(
-                    color=ctx.bot.colors["secondary"],
-                    title="Removed AFK",
-                    description="I removed your afk",
-                )
+            return Embed(
+                color=ctx.bot.colors["secondary"],
+                title="Removed AFK",
+                description="I removed your afk",
+            )
 
 
 def setup(bot):

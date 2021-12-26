@@ -165,8 +165,7 @@ class SquidCommand(_BaseCommand):
         """
         if self.cog is not None:
             return self.callback(self.cog, context, *args, **kwargs)  # type: ignore
-        else:
-            return self.callback(context, *args, **kwargs)  # type: ignore
+        return self.callback(context, *args, **kwargs)  # type: ignore
 
     def transform(self, ctx: SquidContext, param: inspect.Parameter) -> Any:
         required = param.default is param.empty
@@ -204,8 +203,7 @@ class SquidCommand(_BaseCommand):
                 if self._is_typing_optional(param.annotation):
                     view.index = previous
                     return None
-                else:
-                    raise exc
+                raise exc
         view.previous = previous
 
         # type-checker fails to narrow argument
@@ -226,8 +224,7 @@ class SquidCommand(_BaseCommand):
             kw.update(self.__original_kwargs__)
             copy = self.__class__(self.callback, **kw)
             return self._ensure_assignment_on_copy(copy)
-        else:
-            return self.copy()
+        return self.copy()
 
     def copy(self: CommandT) -> CommandT:
         """Creates a copy of this command.
@@ -287,8 +284,7 @@ class SquidCommand(_BaseCommand):
         parent = self.full_parent_name
         if parent:
             return parent + " " + self.name
-        else:
-            return self.name
+        return self.name
 
     def __str__(self) -> str:
         return self.qualified_name
