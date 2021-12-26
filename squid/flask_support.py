@@ -3,21 +3,21 @@ import inspect
 from flask import jsonify
 from discord import Embed
 
+from squid.models.interaction import InteractionResponse
+
 
 def flask_compat(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
-        embed = f(*args, **kwargs)
+        response = f(*args, **kwargs)
 
-        if not isinstance(embed, Embed):
+        if not isinstance(response, InteractionResponse):
             raise TypeError(
-                "Response must be an Embed object but recieved {}: ({})".format(
-                    type(embed), embed.__repr__()
+                "Response must be an InteractionResponse object but recieved {}: ({})".format(
+                    type(response), response.__repr__()
                 )
             )
 
-        r = jsonify({"type": 4, "data": {"embeds": [embed.to_dict()]}})
-        print(r)
-        return r
+        return jsonify(response.to_dict())
 
     return wrapper
