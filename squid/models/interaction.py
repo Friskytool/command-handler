@@ -1,7 +1,20 @@
-from .enums import InteractionType, ApplicationCommandType, ApplicationCommandOptionType
+from typing import List
+from discord import AllowedMentions, Embed, flags
+from .enums import (
+    InteractionResponseType,
+    InteractionType,
+    ApplicationCommandType,
+    ApplicationCommandOptionType,
+)
 from .member import Member, User
+import json
 
-__all__ = ("Interaction", "ApplicationCommand", "ApplicationCommandOption")
+__all__ = (
+    "Interaction",
+    "ApplicationCommand",
+    "ApplicationCommandOption",
+    "InteractionResponse",
+)
 
 
 class Interaction(object):
@@ -114,7 +127,7 @@ class ApplicationCommandOption(object):
             name=data["name"],
             type=ApplicationCommandOptionType(data["type"]),
             value=data.get("value"),
-            options=map(cls.from_json, data.get("options", [])),
+            options=list(map(cls.from_json, data.get("options", []))),
             focused=data.get("focused", False),
         )
 
@@ -130,3 +143,167 @@ class ApplicationCommandOptionChoice(object):
     @classmethod
     def from_json(cls, data: dict):
         return cls(**data)
+
+
+class Component(object):
+    ...
+
+
+"""
+
+class InteractionResponseType(Enum):
+    PONG = 1
+    CHANNEL_MESSAGE_WITH_SOURCE = 4
+    DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE = 5
+    DEFERRED_UPDATE_MESSAGE = 6
+    UPDATE_MESSAGE = 7
+    APPLICATION_COMMAND_AUTOCOMPLETE_RESULT = 8
+
+"""
+
+
+class InteractionResponse(object):
+    def __init__(
+        self,
+        type: InteractionResponseType,
+        *,
+        tts: bool = None,
+        content: str = None,
+        embed: Embed = None,
+        embeds: List[Embed] = [],
+        allowed_mentions: AllowedMentions = None,
+        ephemeral: bool = False,
+        components: List[Component] = [],
+    ):
+        self.type = type
+        self.tts = tts
+        self.content = content
+
+        if embed:
+            if embeds:
+                raise ValueError("Cannot have both embed and embeds")
+            embeds = [embed]
+        self.embeds = [embed.to_dict() for embed in embeds]
+
+        self.allowed_mentions = allowed_mentions
+        self.flags = 1 << 6 if ephemeral else None
+        self.components = components
+
+    @classmethod
+    def channel_message(
+        cls,
+        tts: bool = False,
+        content: str = None,
+        embed: Embed = None,
+        embeds: List[Embed] = [],
+        allowed_mentions: AllowedMentions = None,
+        ephemeral: bool = False,
+        components: List[Component] = [],
+    ):
+        return cls(
+            InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+            tts=tts,
+            content=content,
+            embed=embed,
+            embeds=embeds,
+            allowed_mentions=allowed_mentions,
+            ephemeral=ephemeral,
+            components=components,
+        )
+
+    @classmethod
+    def deferred_channel_message_from_source(
+        cls,
+        tts: bool = False,
+        content: str = None,
+        embed: Embed = None,
+        embeds: List[Embed] = [],
+        allowed_mentions: AllowedMentions = None,
+        ephemeral: bool = False,
+        components: List[Component] = [],
+    ):
+        return cls(
+            InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
+            tts=tts,
+            content=content,
+            embed=embed,
+            embeds=embeds,
+            allowed_mentions=allowed_mentions,
+            ephemeral=ephemeral,
+            components=components,
+        )
+
+    @classmethod
+    def deferred_update_message(
+        cls,
+        tts: bool = False,
+        content: str = None,
+        embed: Embed = None,
+        embeds: List[Embed] = [],
+        allowed_mentions: AllowedMentions = None,
+        ephemeral: bool = False,
+        components: List[Component] = [],
+    ):
+        return cls(
+            InteractionResponseType.DEFERRED_UPDATE_MESSAGE,
+            tts=tts,
+            content=content,
+            embed=embed,
+            embeds=embeds,
+            allowed_mentions=allowed_mentions,
+            ephemeral=ephemeral,
+            components=components,
+        )
+
+    @classmethod
+    def update_message(
+        cls,
+        tts: bool = False,
+        content: str = None,
+        embed: Embed = None,
+        embeds: List[Embed] = [],
+        allowed_mentions: AllowedMentions = None,
+        ephemeral: bool = False,
+        components: List[Component] = [],
+    ):
+        return cls(
+            InteractionResponseType.UPDATE_MESSAGE,
+            tts=tts,
+            content=content,
+            embed=embed,
+            embeds=embeds,
+            allowed_mentions=allowed_mentions,
+            ephemeral=ephemeral,
+            components=components,
+        )
+
+    @classmethod
+    def application_command_autocomplete_result(
+        cls,
+        *,
+        choices: List,
+    ):
+        return cls(
+            InteractionResponseType.APPLICATION_COMMAND_AUTOCOMPLETE_RESULT,
+            choices=choices,
+        )
+
+    def default(self, o):
+        if isinstance(o, InteractionResponseType):
+            return None
+        return o.__dict__
+
+    def to_dict(self):
+        return {
+            "type": self.type.value,
+            "data": json.loads(
+                json.dumps(
+                    self,
+                    default=self.default,
+                    sort_keys=True,
+                ),
+                object_hook=lambda o: {
+                    v: k for v, k in o.items() if k not in [None, [], {}]
+                },
+            ),
+        }
