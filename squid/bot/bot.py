@@ -109,28 +109,26 @@ class SquidBot(object):
                 description="The number you entered is too large.",
                 color=ctx.bot.colors["error"],
             )
-        elif isinstance(error, (UnknownPointer, Gibberish)):
+        if isinstance(error, (UnknownPointer, Gibberish)):
             return Embed(
                 title="Gibberish",
                 description=f"```cs\n{error.friendly}\n```",
                 color=ctx.bot.colors["error"],
             )
-        else:
-            return Embed(
-                title="".join(
-                    [(" " if i.isupper() else "") + i for i in error.__class__.__name__]
-                ),
-                description=f"```cs\n[ERROR] {str(error)}\n```".replace("'", "′"),
-                color=self.colors["error"],
-            )
+        return Embed(
+            title="".join(
+                [(" " if i.isupper() else "") + i for i in error.__class__.__name__]
+            ),
+            description=f"```cs\n[ERROR] {str(error)}\n```".replace("'", "′"),
+            color=self.colors["error"],
+        )
 
     def invoke(self, ctx: SquidContext) -> Optional[Embed]:
         try:
             if ctx.command is not None:
                 if self.can_run(ctx):
                     return ctx.invoke(ctx.command)
-                else:
-                    raise CheckFailure("The global check failed")
+                raise CheckFailure("The global check failed")
             else:
                 return self.unknown_command(ctx.interaction)
         except SquidError as e:

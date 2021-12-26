@@ -92,6 +92,6 @@ def squidbot(request):
         if interaction.type == InteractionType.PING:
             return jsonify({"type": 1})
 
-        elif interaction.type == InteractionType.APPLICATION_COMMAND:
+        if interaction.type == InteractionType.APPLICATION_COMMAND:
             with lazy_bot as bot:
                 return bot.process(interaction)
