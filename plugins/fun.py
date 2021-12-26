@@ -188,9 +188,11 @@ class Fun(SquidPlugin):
         """
 
         res = morse_translate(message)[:2000]
-        return ctx.respond(embed=Embed(description=res, color=ctx.me.color).set_author(
-            name=message, icon_url=ctx.author.avatar_url
-        ))
+        return ctx.respond(
+            embed=Embed(description=res, color=ctx.me.color).set_author(
+                name=message, icon_url=ctx.author.avatar_url
+            )
+        )
 
     @command()
     def roll(self, ctx, _max: int = 6, _min: int = 1):
