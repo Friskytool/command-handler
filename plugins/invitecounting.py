@@ -1,4 +1,5 @@
 from discord import Embed, user
+from squid.models import InteractionResponse
 from squid.bot import command, SquidPlugin
 from squid.utils import db_safe
 import expr
@@ -37,7 +38,7 @@ class InviteCounting(SquidPlugin):
                     len(data.get("leaves_data")) * -1,
                 ]
             )
-            return Embed(
+            return ctx.respond(embed=Embed(
                 description="\n".join(
                     [
                         i.strip()
@@ -54,7 +55,7 @@ class InviteCounting(SquidPlugin):
                     ]
                 ),
                 color=self.bot.colors["primary"],
-            ).set_author(name=f"{y} have {invites} invites!")
+            ).set_author(name=f"{y} have {invites} invites!"))
 
 
 def setup(bot):

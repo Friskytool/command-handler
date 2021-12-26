@@ -3,7 +3,7 @@ from squid.bot import command, SquidPlugin, SquidContext
 from squid.utils import db_safe
 from pprint import pprint
 import inspect
-import random
+from squid.models import InteractionResponse
 
 
 class Utility(SquidPlugin):  # todo fill in cog
@@ -11,11 +11,13 @@ class Utility(SquidPlugin):  # todo fill in cog
         self.bot = bot
 
     @command()
-    def ping(self, _ctx: SquidContext):
-        return Embed(
-            title="Pong!",
-            description="It works!\n",
-            color=0x00FF00,
+    def ping(self, ctx: SquidContext):
+        return ctx.respond(
+            embed=Embed(
+                title="Pong!",
+                description="It works!\n",
+                color=0x00FF00,
+            )
         )
 
     @command()
@@ -28,7 +30,7 @@ class Utility(SquidPlugin):  # todo fill in cog
             description=f"> [Invite link](Bot Invite)](https://discord.com/oauth2/authorize?client_id={self.bot.user.id}&scope=bot%20applications.commands&permissions=1611000937)\n\n> [Invite Link (Support server)](https://discord.gg/TMu242J)\n\n> [Click this link to vote!](https://top.gg/bot/700743797977514004/vote)",
         )
 
-        return embed
+        return ctx.respond(embed=embed)
 
     @command()
     def about(self, ctx: SquidContext):
@@ -39,9 +41,11 @@ class Utility(SquidPlugin):  # todo fill in cog
         Website:\u200b    \u200bhttps://frisky.dev\n\u200b
         Support Server:\u200b \u200b[discord.gg/TMu242J](https://discord.com/invite/TMu242J)\n\u200b
         """
-        return Embed(
-            description=inspect.cleandoc(Utility.about.__doc__).strip(),
-            color=self.bot.colors["primary"],
+        return ctx.respond(
+            embed=Embed(
+                description=inspect.cleandoc(Utility.about.__doc__).strip(),
+                color=self.bot.colors["primary"],
+            )
         )
 
     @command()
@@ -64,19 +68,23 @@ class Utility(SquidPlugin):  # todo fill in cog
                     upsert=True,
                 )
 
-                return Embed(
-                    color=ctx.bot.colors["primary"],
-                    title="Set AFK",
-                    description=f"I set your afk to `{message}`",
+                return ctx.respond(
+                    embed=Embed(
+                        color=ctx.bot.colors["primary"],
+                        title="Set AFK",
+                        description=f"I set your afk to `{message}`",
+                    )
                 )
             db.AfkStorage.find_one_and_delete(
                 {"id": db_safe(ctx.author.id), "doctype": "user_storage"}
             )
 
-            return Embed(
-                color=ctx.bot.colors["secondary"],
-                title="Removed AFK",
-                description="I removed your afk",
+            return ctx.respond(
+                embed=Embed(
+                    color=ctx.bot.colors["secondary"],
+                    title="Removed AFK",
+                    description="I removed your afk",
+                )
             )
 
 

@@ -62,15 +62,17 @@ class Timers(SquidPlugin):
                     f"{'You' if user.id == ctx.author.id else 'They'} don't have any timers"
                 )
 
-            return Embed(
-                title="Timers",
-                description="\n".join(
-                    [
-                        f"{user.safe_name} has a timer for {int(end - ctime())} seconds"
-                        for end in map(lambda x: x["end"], data)
-                    ]
-                ),
-                color=self.bot.colors["primary"],
+            return ctx.respond(
+                embed=Embed(
+                    title="Timers",
+                    description="\n".join(
+                        [
+                            f"{user.safe_name} has a timer for {int(end - ctime())} seconds"
+                            for end in map(lambda x: x["end"], data)
+                        ]
+                    ),
+                    color=self.bot.colors["primary"],
+                )
             )
 
 

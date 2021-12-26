@@ -30,10 +30,10 @@ class MessageCounting(SquidPlugin):
 
             messages = data.get("count", 0)
 
-            return Embed(
+            return ctx.respond(embed=Embed(
                 description=f"*{user.safe_name}* has `{messages:,}` messages",
                 color=self.bot.colors["primary"],
-            )
+            ))
 
 
 def setup(bot):
