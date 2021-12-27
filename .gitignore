@@ -130,3 +130,6 @@ dmypy.json
 
 # Debugging sessions
 debug.sh
+
+# Vscode settings
+.vscode/*
