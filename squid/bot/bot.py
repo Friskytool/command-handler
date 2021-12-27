@@ -1,6 +1,6 @@
 from functools import wraps
 from typing import Callable, Optional
-
+import sentry_sdk
 from expr.errors import Gibberish, NumberOverflow, UnknownPointer
 
 from squid.bot.errors import CheckFailure, CommandFailed, SquidError
@@ -130,6 +130,10 @@ class SquidBot(object):
         try:
             if ctx.command is not None:
                 if self.can_run(ctx):
+                    sentry_sdk.set_context(
+                        "command",
+                        {"name": ctx.command.qualified_name, "ctx": ctx},
+                    )
                     return ctx.invoke(ctx.command)
                 raise CheckFailure("The global check failed")
             else:

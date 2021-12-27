@@ -22,6 +22,20 @@ from squid.models.enums import InteractionType
 from squid.models.functions import lazy, Lazy
 from squid.bot import SquidBot
 from pymongo import MongoClient
+import logging
+import sentry_sdk
+from sentry_sdk.integrations.gcp import GcpIntegration
+
+if sentry_dsn := os.getenv("SENTRY_DSN"):
+    sentry_sdk.init(
+        dsn=sentry_dsn,
+        integrations=[GcpIntegration(timeout_warning=True)],
+        attach_stacktrace=True,
+        send_default_pii=True,
+        traces_sample_rate=1.0,
+    )
+
+logging.basicConfig(level=logging.DEBUG)
 
 
 @lazy

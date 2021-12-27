@@ -1,3 +1,4 @@
+from sentry_sdk.api import capture_exception, push_scope
 from squid.bot.errors import SquidError
 from squid.models.enums import ApplicationCommandOptionType
 from squid.models.functions import Lazy
@@ -127,14 +128,21 @@ class SquidContext(object):
                 command.command_check(self, command)
             return command(self, *args, **{**self.kwargs, **kwargs})
         except Exception as e:
-            # handling errors
-            if hasattr(command, "on_error"):
-                return command.on_error(self, e)
-            if command.parent and hasattr(command.parent, "on_error"):
-                return command.parent.on_error(self, e)
-            if hasattr(self.bot, "on_error"):
-                return self.bot.on_error(self, e)
-            raise SquidError(e)
+            with push_scope() as scope:
+                scope.set_extra("interaction", self.interaction)
+                scope.set_extra("command", command)
+                scope.set_extra("args", args)
+                scope.set_extra("kwargs", kwargs)
+
+                capture_exception(e)
+                # handling errors
+                if hasattr(command, "on_error"):
+                    return command.on_error(self, e)
+                if command.parent and hasattr(command.parent, "on_error"):
+                    return command.parent.on_error(self, e)
+                if hasattr(self.bot, "on_error"):
+                    return self.bot.on_error(self, e)
+                raise SquidError(e)
 
     def send(self, *a, **k):
         with self.bot.webhook(self.application_id, self.token) as hook:

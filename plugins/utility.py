@@ -12,13 +12,14 @@ class Utility(SquidPlugin):  # todo fill in cog
 
     @command()
     def ping(self, ctx: SquidContext):
-        return ctx.respond(
-            embed=Embed(
-                title="Pong!",
-                description="It works!\n",
-                color=0x00FF00,
-            )
-        )
+        raise SyntaxError("abc")
+        # return ctx.respond(
+        #     embed=Embed(
+        #         title="Pong!",
+        #         description="It works!\n",
+        #         color=0x00FF00,
+        #     )
+        # )
 
     @command()
     def links(self, ctx: SquidContext):

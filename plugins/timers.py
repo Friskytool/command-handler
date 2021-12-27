@@ -1,7 +1,10 @@
+from datetime import datetime
 from squid.bot import command, SquidPlugin
 from squid.bot.errors import CommandFailed
 from discord import Embed
 from time import time as ctime
+import requests
+from squid.utils import parse_time
 
 
 class Timers(SquidPlugin):
@@ -17,34 +20,32 @@ class Timers(SquidPlugin):
         if len(time) <= 1:
             raise CommandFailed("Invalid time format")
 
-        unit = time[-1]
+        delta = parse_time(time)
 
-        if unit not in ["s", "m", "h", "d"]:
-            raise CommandFailed("Invalid time unit (`{}`)".format(unit))
+        # with ctx.bot.db as db:
+        #     db.timers.insert_one(
+        #         {
+        #             "user_id": ctx.author.id,
+        #             "guild_id": ctx.guild_id,
+        #             "end": datetime.now() + delta,
+        #             "start": datetime.now(),
+        #         }
+        #     )
+        print(ctx.interaction)
+        print(
+            f"""
+            requests.post(
+                f"https://discord.com/api/v9/webhooks/{ctx.application_id}/{ctx.interaction.token}", json={{"content": "test"}}
+            ).json()
+            """
+        )
 
-        time = int(time[:-1])
-
-        if unit == "s":
-            time = time
-        elif unit == "m":
-            time = time * 60
-        elif unit == "h":
-            time = time * 60 * 60
-        elif unit == "d":
-            time = time * 60 * 60 * 24
-
-        with ctx.bot.db as db:
-            db.timers.insert_one(
-                {
-                    "user_id": ctx.author.id,
-                    "guild_id": ctx.guild.id,
-                    "end": ctime() + time,
-                }
-            )
-
-        return Embed(
-            description=f"{ctx.author.safe_name} has set a timer for {time} seconds",
-            color=self.bot.colors["primary"],
+        return ctx.respond(
+            embed=Embed(
+                description=f"{ctx.author.safe_name} has set a timer for {int(delta.seconds)} seconds",
+                color=self.bot.colors["primary"],
+            ),
+            ephemeral=True,
         )
 
     @command(name="timers", aliases=["tlist", "tls"])
