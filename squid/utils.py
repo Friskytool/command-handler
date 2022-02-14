@@ -1,15 +1,61 @@
 import re
 import sys
-from datetime import timedelta
+from datetime import datetime, timedelta
+import time
 from typing import Any, Dict, ForwardRef, Iterable, List, Literal, Tuple, TypeVar, Union
-
+import datetime
 import bson
 
 PY_310 = sys.version_info >= (3, 10)
 
 
-def db_safe(*args, **kwargs):
-    return bson.int64.Int64(*args, **kwargs)  # mongodb cuts a few off the top
+def now():
+    return datetime.datetime.now(datetime.timezone.utc)
+
+
+def discord_timestamp(t):
+    return datetime.datetime.utcfromtimestamp(time.mktime(t.timetuple())) - timedelta(
+        hours=12
+    )
+
+
+# camel case to snake case
+def camel_to_snake(name: str) -> str:
+    """Converts a camel case string to snake case.
+
+    Args:
+        name (str): The camel case string to convert.
+
+    Returns:
+        str: The snake case string.
+    """
+    s1 = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", name)
+    return re.sub("([a-z0-9])([A-Z])", r"\1_\2", s1).lower()
+
+
+intervals = (
+    ("weeks", 604800),  # 60 * 60 * 24 * 7
+    ("days", 86400),  # 60 * 60 * 24
+    ("hours", 3600),  # 60 * 60
+    ("minutes", 60),
+    ("seconds", 1),
+)
+
+
+def display_time(seconds, *, granularity=10, wrap="**"):
+    if isinstance(seconds, timedelta):
+        seconds = seconds.total_seconds()
+    result = []
+    base = f"{wrap}{{0}}{wrap} {{1}}"
+    for name, count in intervals:
+        value = seconds // count
+        if value:
+            seconds -= value * count
+            if value == 1:
+                name = name.rstrip("s")
+            text = base.format(int(value), name)
+            result.append(text)
+    return ", ".join(result[:granularity])
 
 
 def flatten_literal_params(parameters: Iterable[Any]) -> Tuple[Any, ...]:

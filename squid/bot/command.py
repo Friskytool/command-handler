@@ -1,14 +1,15 @@
 from functools import wraps
 from squid._types import _BaseCommand
-from typing import Callable, Any, Optional, List, Union, Dict, Tuple, T, Type, TypeVar
+from typing import Callable, Any, Optional, List, Union, Dict, Tuple, Type, TypeVar
 import inspect
 from squid.utils import evaluate_annotation
-from .context import SquidContext
+from .context import CommandContext
 from squid.errors import ArgumentParsingError
 from .converter import get_converter
 import functools
 
 CommandT = TypeVar("CommandT", bound="SquidCommand")
+T = TypeVar("T")
 
 
 def get_signature_parameters(
@@ -154,7 +155,7 @@ class SquidCommand(_BaseCommand):
         """
         self.__init__(self.callback, **dict(self.__original_kwargs__, **kwargs))
 
-    def __call__(self, context: SquidContext, *args, **kwargs) -> T:
+    def __call__(self, context: CommandContext, *args, **kwargs):
         """|coro|
         Calls the internal callback that the command holds.
         .. note::
@@ -167,7 +168,7 @@ class SquidCommand(_BaseCommand):
             return self.callback(self.cog, context, *args, **kwargs)  # type: ignore
         return self.callback(context, *args, **kwargs)  # type: ignore
 
-    def transform(self, ctx: SquidContext, param: inspect.Parameter) -> Any:
+    def transform(self, ctx: CommandContext, param: inspect.Parameter) -> Any:
         required = param.default is param.empty
         converter = get_converter(param)
         consume_rest_is_special = (
@@ -294,7 +295,7 @@ def command(
     *,
     cls: Type[SquidCommand] = None,
     **attrs: Any,
-) -> Callable[[Type[SquidCommand]], Type[SquidCommand]]:
+):
     """A decorator that transforms a function into a :class:`Command`
     subclass under the name ``name``. The ``cls`` argument is the
     type of :class:`Command` to use under the hood. If not

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import List, Any, Type
+from squid import utils
 from .command import SquidCommand, _BaseCommand
 import inspect
 
@@ -12,7 +13,7 @@ class PluginMeta(type):
 
     def __new__(cls: Type[PluginMeta], *args: Any, **kwargs: Any) -> PluginMeta:
         name, bases, attrs = args
-        attrs["__cog_name__"] = kwargs.pop("name", name)
+        attrs["__cog_name__"] = utils.camel_to_snake(kwargs.pop("name", name))
         attrs["__cog_settings__"] = kwargs.pop("command_attrs", {})
 
         description = kwargs.pop("description", None)
@@ -49,9 +50,6 @@ class PluginMeta(type):
 
 
 class SquidPlugin(metaclass=PluginMeta):
-    def __new__(self, bot):
-        self.bot = bot
-
     def __new__(cls, *args: Any, **kwargs: Any):
         # For issue 426, we need to store a copy of the command objects
         # since we modify them to inject `self` to them.

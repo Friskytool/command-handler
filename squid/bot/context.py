@@ -1,9 +1,12 @@
+from functools import wraps
+
 from sentry_sdk.api import capture_exception, push_scope
 from squid.bot.errors import SquidError
 from squid.models.enums import ApplicationCommandOptionType
 from squid.models.functions import Lazy
 from squid.models.interaction import ApplicationCommandOption, InteractionResponse
 from squid.models.member import Member, User
+from squid.models.views import ButtonData
 from ..models import Interaction
 
 
@@ -11,8 +14,7 @@ class SquidContext(object):
     def __init__(self, bot, interaction: Interaction):
         self.interaction = interaction
         self.bot = bot
-
-        self.command = bot.get_command(interaction.data.name)
+        self.http = bot.http
 
         self.interaction_id = interaction.id
         self.application_id = interaction.application_id
@@ -26,7 +28,6 @@ class SquidContext(object):
 
         self._token = interaction.token
         self._message = interaction.message
-
         self.respond = InteractionResponse.channel_message
 
     @property
@@ -82,6 +83,16 @@ class SquidContext(object):
 
         return resolver
 
+    def send(self, *a, **k):
+        k.setdefault("content", None)
+        return self.http.send_message(channel_id=self.channel_id, *a, **k)
+
+
+class CommandContext(SquidContext):
+    def __init__(self, bot, interaction: Interaction):
+        super().__init__(bot, interaction)
+        self.command = bot.get_command(interaction.data.name)
+
     def _resolve(self, i: ApplicationCommandOption):
 
         """
@@ -116,7 +127,7 @@ class SquidContext(object):
         return {i.name: self._resolve(i) for i in self.interaction.data.options}
 
     def __repr__(self):
-        return "<SquidContext: {}>".format(self.interaction)
+        return "<CommandContext: {}>".format(self.interaction)
 
     def invoke(self, command, *args, **kwargs):
         try:
@@ -134,7 +145,8 @@ class SquidContext(object):
                 scope.set_extra("args", args)
                 scope.set_extra("kwargs", kwargs)
 
-                capture_exception(e)
+                if self.bot.sentry:
+                    capture_exception(e)
                 # handling errors
                 if hasattr(command, "on_error"):
                     return command.on_error(self, e)
@@ -144,6 +156,20 @@ class SquidContext(object):
                     return self.bot.on_error(self, e)
                 raise SquidError(e)
 
-    def send(self, *a, **k):
-        with self.bot.webhook(self.application_id, self.token) as hook:
-            return hook.send(*a, **k)
+
+class ComponentContext(SquidContext):
+    def __init__(self, bot, interaction):
+        super().__init__(bot, interaction)
+        self.value = interaction.data.custom_id
+        self.data: ButtonData = ButtonData.get(self.value)
+
+        self.handler = bot.get_handler(self.data.typ)
+
+    def kwargs(self) -> dict:
+        return self.data.data
+
+    def invoke(self, handler, *args, **kwargs):
+        return handler.callback(self, *args, **{**self.kwargs(), **kwargs})
+
+    def __repr__(self):
+        return f"<ComponentContext: data={self.data} interaction={self.interaction}>"

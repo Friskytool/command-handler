@@ -4,6 +4,7 @@ from .mathsolving import Math, setup as mathsolving_setup
 from .messagecounting import MessageCounting, setup as messagecounting_setup
 from .utility import Utility, setup as utility_setup
 from .timers import Timers, setup as timers_setup
+from .dankmemer import DankMemer, setup as dankmemer_setup
 
 
 def setup(bot):
@@ -13,3 +14,4 @@ def setup(bot):
     invitecounting_setup(bot)
     messagecounting_setup(bot)
     timers_setup(bot)
+    dankmemer_setup(bot)

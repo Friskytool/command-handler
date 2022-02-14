@@ -1,7 +1,6 @@
 from discord import Embed, user
 from squid.models import InteractionResponse
 from squid.bot import command, SquidPlugin
-from squid.utils import db_safe
 import expr
 
 
@@ -15,7 +14,7 @@ class InviteCounting(SquidPlugin):
         Get's your current invites
         """
         with ctx.bot.db as db:
-            user_id = str(user or ctx.author.id)
+            user_id = str((user or ctx.author).id)
             y = "You" if user_id == str(ctx.author.id) else "They"
             data = db.invites.find_one(
                 {
@@ -25,9 +24,11 @@ class InviteCounting(SquidPlugin):
                 }
             )
             if not data:
-                return Embed(
-                    description=f"{y} don't have any invites yet!",
-                    color=self.bot.colors["error"],
+                return ctx.respond(
+                    embed=Embed(
+                        description=f"{y} don't have any invites yet!",
+                        color=self.bot.colors["error"],
+                    )
                 )
 
             invites = sum(

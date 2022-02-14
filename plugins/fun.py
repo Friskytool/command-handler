@@ -261,11 +261,12 @@ class Fun(SquidPlugin):
         )
 
     @command(name="8ball")
-    def _8ball(self, ctx, *, question: str = None):
+    def _8ball(self, ctx, *, question: str = ""):
         """Ask a question and recieve a response"""
         choice = random.choice(normal8ball)
         limit = 200
-        question = question[:limit] if question is str else question
+
+        question = question[:limit]
 
         return ctx.respond(
             embed=Embed(description=choice, color=Color.blue()).set_author(
@@ -274,11 +275,11 @@ class Fun(SquidPlugin):
         )
 
     @command(name="programmer8ball", aliases=["p8ball"])
-    def p8ball(self, ctx, *, question: str = None):
+    def p8ball(self, ctx, *, question: str = ""):
         """ "Ask a question and get a programmer-like response"""
         choice = random.choice(programming8ball)
         limit = 200
-        question = question[:limit] if question is str else question
+        question = question[:limit]
 
         return ctx.respond(
             embed=Embed(description=choice, color=Color.blue()).set_author(

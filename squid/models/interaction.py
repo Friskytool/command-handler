@@ -1,5 +1,5 @@
 from typing import List
-from discord import AllowedMentions, Embed, flags
+from discord import AllowedMentions, Embed
 from .enums import (
     InteractionResponseType,
     InteractionType,
@@ -91,6 +91,28 @@ class Interaction(object):
         default.pop("data")
         return cls(data=ApplicationCommand.from_json(data["data"]), **default)
 
+    @classmethod
+    def message_component_constructor(cls, data):
+        default = cls._default_constructor(data)
+        default.pop("data")
+        return cls(data=MessageComponent.from_json(data["data"]), **default)
+
+
+class MessageComponent(object):
+    def __init__(self, *, component_type: int, custom_id: str):
+        self.component_type = component_type
+        self.custom_id = custom_id
+
+    @classmethod
+    def from_json(cls, data):
+        return cls(
+            component_type=data["component_type"],
+            custom_id=data["custom_id"],
+        )
+
+    def __repr__(self):
+        return f"<MessageComponent component_type={self.component_type} custom_id={self.custom_id}>"
+
 
 class ApplicationCommand(object):
     def __init__(self, *, id, name, type, resolved=None, options=[]):
@@ -174,6 +196,7 @@ class InteractionResponse(object):
         allowed_mentions: AllowedMentions = None,
         ephemeral: bool = False,
         components: List[Component] = [],
+        choices: List = [],
     ):
         self.type = type
         self.tts = tts
@@ -188,6 +211,8 @@ class InteractionResponse(object):
         self.allowed_mentions = allowed_mentions
         self.flags = 1 << 6 if ephemeral else None
         self.components = components
+
+        self.choices = choices
 
     @classmethod
     def channel_message(

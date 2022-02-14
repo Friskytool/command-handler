@@ -11,20 +11,25 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import logging
+import os
 
 import functions_framework
-from flask import abort, jsonify, redirect
-from nacl.signing import VerifyKey
-from nacl.exceptions import BadSignatureError
-import os
-from squid.models.interaction import Interaction, ApplicationCommand
-from squid.models.enums import InteractionType
-from squid.models.functions import lazy, Lazy
-from squid.bot import SquidBot
-from pymongo import MongoClient
-import logging
 import sentry_sdk
+from flask import abort, jsonify
+from nacl.exceptions import BadSignatureError
+from nacl.signing import VerifyKey
+from pymongo import MongoClient
+from redis import Redis
 from sentry_sdk.integrations.gcp import GcpIntegration
+
+from squid.bot import SquidBot
+from squid.models.enums import InteractionType
+from squid.models.functions import lazy
+from squid.models.interaction import Interaction
+from squid.models.views import View
+
+__version__ = "0.0.1"
 
 if sentry_dsn := os.getenv("SENTRY_DSN"):
     sentry_sdk.init(
@@ -40,7 +45,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 @lazy
 def setup_db():
-    client = MongoClient(os.getenv("MONGO_URI"))
+    client = MongoClient(os.getenv("MONGO_URL"))
 
     if bool(os.getenv("PRODUCTION")):
         db = client.Main
@@ -49,22 +54,42 @@ def setup_db():
     return db
 
 
+@lazy
+def setup_redis():
+    print("Setting up redis")
+    if url := os.getenv("REDIS_URL"):
+        print(url)
+        k = {}
+        if password := os.getenv("REDIS_PASS"):
+            k["password"] = password
+        redis: Redis = Redis.from_url(url, **k)
+    else:
+        redis: Redis = Redis()
+    return redis
+
+
 @SquidBot.from_lazy()
 def lazy_bot(cls=SquidBot):
     bot = cls(
         public_key=os.getenv("PUBLIC_KEY"),
+        token=os.getenv("DISCORD_TOKEN"),
         primary_color=0xEA81AE,
         secondary_color=0xEA81AE,
         error_color=0xCC1100,
         squid_db=setup_db,
+        squid_redis=setup_redis,
+        squid_sentry=bool(os.getenv("PRODUCTION")),
     )
     import plugins
 
     plugins.setup(bot)
 
     @bot.check
-    def check_permissions(ctx):
-        return True
+    def check_plugins(ctx):
+        with ctx.bot.redis as redis:
+            plugins = redis.smembers(f"plugins:{ctx.guild_id}")
+            print(plugins)
+            return True
 
     return bot
 
@@ -82,13 +107,13 @@ def squidbot(request):
     """
 
     if request.method == "GET":
-        return redirect("https://squid.pink/", code=301)
+        return "<a href=https://squid.pink/>How'd you get here?</a>", 418
 
     if request.method != "POST":
         return abort(405)
 
     # key verification
-    PUBLIC_KEY = os.getenv("PUBLIC_KEY")
+    PUBLIC_KEY = os.getenv("PUBLIC_KEY") or ""
 
     verify_key = VerifyKey(bytes.fromhex(PUBLIC_KEY))
 
@@ -106,6 +131,9 @@ def squidbot(request):
         if interaction.type == InteractionType.PING:
             return jsonify({"type": 1})
 
-        if interaction.type == InteractionType.APPLICATION_COMMAND:
+        elif interaction.type in [
+            InteractionType.APPLICATION_COMMAND,
+            InteractionType.MESSAGE_COMPONENT,
+        ]:
             with lazy_bot as bot:
                 return bot.process(interaction)

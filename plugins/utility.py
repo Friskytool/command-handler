@@ -1,6 +1,5 @@
 from discord import Embed
-from squid.bot import command, SquidPlugin, SquidContext
-from squid.utils import db_safe
+from squid.bot import command, SquidPlugin, CommandContext
 from pprint import pprint
 import inspect
 from squid.models import InteractionResponse
@@ -11,18 +10,18 @@ class Utility(SquidPlugin):  # todo fill in cog
         self.bot = bot
 
     @command()
-    def ping(self, ctx: SquidContext):
-        raise SyntaxError("abc")
-        # return ctx.respond(
-        #     embed=Embed(
-        #         title="Pong!",
-        #         description="It works!\n",
-        #         color=0x00FF00,
-        #     )
-        # )
+    def ping(self, ctx: CommandContext):
+        return ctx.respond(
+            embed=Embed(
+                title="Pong!",
+                description="It works!\n",
+                color=0x00FF00,
+            ),
+            ephemeral=True,
+        )
 
     @command()
-    def links(self, ctx: SquidContext):
+    def links(self, ctx: CommandContext):
         """Get's the bot's invite links"""
 
         embed = Embed(
@@ -34,7 +33,7 @@ class Utility(SquidPlugin):  # todo fill in cog
         return ctx.respond(embed=embed)
 
     @command()
-    def about(self, ctx: SquidContext):
+    def about(self, ctx: CommandContext):
         """
         Information about the bot
         Created By:\u200b \u200b[`Squidtoon99`](https://squid.pink) & Frisky\n\u200b
@@ -44,7 +43,7 @@ class Utility(SquidPlugin):  # todo fill in cog
         """
         return ctx.respond(
             embed=Embed(
-                description=inspect.cleandoc(Utility.about.__doc__).strip(),
+                description=inspect.cleandoc(Utility.about.__doc__ or "").strip(),
                 color=self.bot.colors["primary"],
             )
         )
@@ -53,17 +52,17 @@ class Utility(SquidPlugin):  # todo fill in cog
     def afk(self, ctx, message: str = None):
         with ctx.bot.db as db:
             data = db.AfkStorage.find_one(
-                {"id": db_safe(ctx.author.id), "doctype": "user_storage"}
+                {"id": str(ctx.author.id), "doctype": "user_storage"}
             )
             print(data)
             if not data or message:
                 message = message or "I'm AFK"
                 db.AfkStorage.find_one_and_update(
-                    {"id": db_safe(ctx.author.id), "doctype": "user_storage"},
+                    {"id": str(ctx.author.id), "doctype": "user_storage"},
                     {
                         "$set": {
                             "message": message,
-                            "guild": {"id": db_safe(ctx.guild_id)},
+                            "guild": {"id": str(ctx.guild_id)},
                         }
                     },
                     upsert=True,
@@ -77,7 +76,7 @@ class Utility(SquidPlugin):  # todo fill in cog
                     )
                 )
             db.AfkStorage.find_one_and_delete(
-                {"id": db_safe(ctx.author.id), "doctype": "user_storage"}
+                {"id": str(ctx.author.id), "doctype": "user_storage"}
             )
 
             return ctx.respond(
