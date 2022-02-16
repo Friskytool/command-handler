@@ -9,6 +9,10 @@ import bson
 PY_310 = sys.version_info >= (3, 10)
 
 
+def s(o):
+    return "" if o == 1 else "s"
+
+
 def now():
     return datetime.datetime.now(datetime.timezone.utc)
 
