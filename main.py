@@ -17,17 +17,20 @@ import os
 import functions_framework
 import sentry_sdk
 from flask import abort, jsonify
+import requests
 from nacl.exceptions import BadSignatureError
 from nacl.signing import VerifyKey
 from pymongo import MongoClient
 from redis import Redis
 from sentry_sdk.integrations.gcp import GcpIntegration
+import TagScriptEngine as tse
 
 from squid.bot import SquidBot
 from squid.models.enums import InteractionType
 from squid.models.functions import lazy
 from squid.models.interaction import Interaction
 from squid.models.views import View
+from squid.settings import Settings
 
 __version__ = "0.0.1"
 
@@ -56,9 +59,7 @@ def setup_db():
 
 @lazy
 def setup_redis():
-    print("Setting up redis")
     if url := os.getenv("REDIS_URL"):
-        print(url)
         k = {}
         if password := os.getenv("REDIS_PASS"):
             k["password"] = password
@@ -66,6 +67,49 @@ def setup_redis():
     else:
         redis: Redis = Redis()
     return redis
+
+
+@lazy
+def setup_engine():
+    blocks = [
+        tse.MathBlock(),
+        tse.RandomBlock(),
+        tse.RangeBlock(),
+        tse.AnyBlock(),
+        tse.IfBlock(),
+        tse.AllBlock(),
+        tse.BreakBlock(),
+        tse.StrfBlock(),
+        tse.StopBlock(),
+        tse.AssignmentBlock(),
+        tse.FiftyFiftyBlock(),
+        tse.ShortCutRedirectBlock("args"),
+        tse.LooseVariableGetterBlock(),
+        tse.SubstringBlock(),
+        tse.EmbedBlock(),
+        tse.ReplaceBlock(),
+        tse.PythonBlock(),
+        tse.URLEncodeBlock(),
+        tse.RequireBlock(),
+        tse.BlacklistBlock(),
+        tse.CommandBlock(),
+        tse.OverrideBlock(),
+        tse.RedirectBlock(),
+        tse.CooldownBlock(),
+    ]
+
+    return tse.Interpreter(blocks)
+
+
+@lazy
+def setup_settings():
+
+    # would put this on startup but cold-boot times are kiler
+    req = requests.get(os.getenv("API_URL") + "/static/settings.json")
+
+    settings = Settings.from_data(req.json())
+
+    return settings
 
 
 @SquidBot.from_lazy()
@@ -78,7 +122,11 @@ def lazy_bot(cls=SquidBot):
         error_color=0xCC1100,
         squid_db=setup_db,
         squid_redis=setup_redis,
+        squid_engine=setup_engine,
+        squid_settings=setup_settings,
         squid_sentry=bool(os.getenv("PRODUCTION")),
+        squid_amari_auth=os.getenv("AMARI_AUTH"),
+        squid_requirements={},
     )
     import plugins
 
@@ -87,8 +135,7 @@ def lazy_bot(cls=SquidBot):
     @bot.check
     def check_plugins(ctx):
         with ctx.bot.redis as redis:
-            plugins = redis.smembers(f"plugins:{ctx.guild_id}")
-            print(plugins)
+            # plugins = redis.smembers(f"plugins:{ctx.guild_id}")
             return True
 
     return bot

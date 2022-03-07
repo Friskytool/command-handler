@@ -2,11 +2,21 @@ import re
 import sys
 from datetime import datetime, timedelta
 import time
-from typing import Any, Dict, ForwardRef, Iterable, List, Literal, Tuple, TypeVar, Union
+from typing import Any, Dict, ForwardRef, Iterable, Literal, Tuple, Union
 import datetime
-import bson
 
 PY_310 = sys.version_info >= (3, 10)
+
+
+def format_list(l: list):
+    if len(l) == 0:
+        return ""
+    elif len(l) == 1:
+        return str(l[0])
+    elif len(l) == 2:
+        return "{} and {}".format(l[0], l[1])
+    else:
+        return ", ".join(l[:-1]) + " and " + l[-1]
 
 
 def s(o):

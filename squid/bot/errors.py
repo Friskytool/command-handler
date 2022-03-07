@@ -1,3 +1,6 @@
+from typing import List
+
+
 class SquidError(Exception):
     """Base exception all other exceptions inherit from"""
 
@@ -9,8 +12,16 @@ class CommandFailed(SquidError):
     Command processing failed through incorrect user input
     """
 
-    def __init__(self, message):
-        self.message = message
+    def __init__(self, *args: List[str], fmt="cs"):
+        super().__init__(*args)
+        self.fmt = fmt
+        self.message = (
+            (f"```{fmt}\n" if fmt else "```\n")
+            + ("[ERROR]\n" if fmt == "cs" else "")
+            + "\n".join(args)
+            + "\n```"
+        )
+        print(self.message)
 
     def __str__(self):
         return self.message
@@ -38,4 +49,6 @@ class CheckFailure(CommandFailed):
     A check failed
     """
 
-    pass
+    def __init__(self, *a, **kw):
+        kw.setdefault("fmt", "diff")
+        super().__init__(*a, **kw)

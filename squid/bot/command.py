@@ -1,7 +1,8 @@
-from functools import wraps
+from typing_extensions import Self
 from squid._types import _BaseCommand
 from typing import Callable, Any, Optional, List, Union, Dict, Tuple, Type, TypeVar
 import inspect
+from squid.bot.errors import CheckFailure, CommandError
 from squid.utils import evaluate_annotation
 from .context import CommandContext
 from squid.errors import ArgumentParsingError
@@ -115,6 +116,9 @@ class SquidCommand(_BaseCommand):
         self.brief: Optional[str] = kwargs.get("brief")
         self.usage: Optional[str] = kwargs.get("usage")
 
+        # for a future register command to associate commands with groups
+        self.group: Optional[str] = kwargs.get("group")
+
         self.aliases: Union[List[str], Tuple[str]] = kwargs.get("aliases", [])
         self.extras: Dict[str, Any] = kwargs.get("extras", {})
 
@@ -128,6 +132,18 @@ class SquidCommand(_BaseCommand):
 
         parent = kwargs.get("parent")
         self.parent = parent if isinstance(parent, _BaseCommand) else None  # type: ignore
+
+        try:
+            checks = func.__commands_checks__
+            checks.reverse()
+        except AttributeError:
+            checks = kwargs.get("checks", [])
+
+        self.checks: List[Callable] = checks
+        self._commands: Dict[str, Type[Self]] = {}
+
+    def __repr__(self):
+        return f"<SquidCommand name={self.name!r} qualified_name={self.qualified_name!r} commands={self._commands!r}>"
 
     @property
     def callback(self):
@@ -147,6 +163,30 @@ class SquidCommand(_BaseCommand):
 
         self.params = get_signature_parameters(value, globalns)
 
+    def add_check(self, func: Callable, /) -> None:
+        """Adds a check to the command.
+        This is the non-decorator interface to :func:`.check`.
+        Parameters
+        -----------
+        func
+            The function that will be used as a check.
+        """
+
+        self.checks.append(func)
+
+    def remove_check(self, func: Callable, /) -> None:
+        """Removes a check from the command.
+        This is the non-decorator interface to :func:`.check`.
+        Parameters
+        -----------
+        func
+            The function to remove from the checks.
+        """
+        try:
+            self.checks.remove(func)
+        except ValueError:
+            pass
+
     def update(self, **kwargs: Any) -> None:
         """Updates :class:`Command` instance with updated attribute.
         This works similarly to the :func:`.command` decorator in terms
@@ -154,6 +194,51 @@ class SquidCommand(_BaseCommand):
         subclass constructors, sans the name and callback.
         """
         self.__init__(self.callback, **dict(self.__original_kwargs__, **kwargs))
+
+    def can_run(self, ctx: CommandContext):
+        original = ctx.command
+        ctx.command = self
+        try:
+            if not ctx.bot.can_run(ctx):
+                raise CheckFailure(
+                    f"The global check functions for command {self.name} failed."
+                )
+
+            cog = self.cog
+
+            if cog is not None:
+                try:
+                    local_check = cog.cog_check
+
+                except AttributeError:
+                    local_check = None
+                if local_check is not None:
+                    if not cog.cog_check(ctx):
+                        return False
+
+            if not self.checks:
+                return True
+
+            return all(map(lambda check: check(ctx), self.checks))
+        finally:
+            ctx.command = original
+
+    def prepare(self, ctx: CommandContext):
+        try:
+            if not self.can_run(ctx):
+                raise CheckFailure(
+                    "The check functions for command {0.name} failed.".format(self)
+                )
+        except CheckFailure as exc:
+            raise exc
+        except Exception as e:
+            raise CommandError(str(e)) from e
+
+    def invoke(self, ctx: CommandContext):
+        """Invokes the command given the ctx."""
+        self.prepare(ctx)
+
+        return self(ctx, **ctx.kwargs)
 
     def __call__(self, context: CommandContext, *args, **kwargs):
         """|coro|
@@ -213,6 +298,9 @@ class SquidCommand(_BaseCommand):
     def _ensure_assignment_on_copy(self, other):
 
         # if I start adding checks they should be added here
+
+        if self.checks != other.checks:
+            other.checks = self.checks.copy()
         try:
             other.on_error = self.on_error
         except AttributeError:
@@ -286,6 +374,33 @@ class SquidCommand(_BaseCommand):
         if parent:
             return parent + " " + self.name
         return self.name
+
+    def get_command(self, name: str):
+        return self._commands.get(name)
+
+    def add_command(self, command: Type[Self]):
+        self._commands[command.qualified_name] = command
+        return command
+
+    def remove_command(self, name: str):
+        return self._commands.pop(name, None)
+
+    def subcommand(self, *, cls: Type[Self] = None, **attrs: Any):
+        if cls is None:
+            cls = type(self)
+
+            def decorator(func: Callable[..., T]) -> Callable[..., T]:
+                if isinstance(func, SquidCommand):
+                    raise TypeError("Callback is already a command.")
+
+                attrs.setdefault("name", func.__name__)
+                attrs["parent"] = self
+
+                obj = cls(func, **attrs)
+                self.add_command(obj)
+                return functools.wraps(func)(obj)
+
+        return decorator
 
     def __str__(self) -> str:
         return self.qualified_name

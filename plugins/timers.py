@@ -1,7 +1,6 @@
 import json
 import uuid
 from datetime import timedelta
-
 from discord import ButtonStyle, Color, Embed
 from discord.ui import Button
 from squid.bot import CommandContext, SquidPlugin, command
@@ -9,11 +8,24 @@ from squid.bot.context import ComponentContext
 from squid.bot.errors import CommandFailed
 from squid.models.interaction import InteractionResponse
 from squid.models.views import ButtonData, View
-from squid.utils import discord_timestamp, display_time, now, parse_time
+from squid.utils import discord_timestamp, now, parse_time
+from squid.bot.errors import CheckFailure
+from discord.ext import commands
+
+
+def has_role(ctx):
+    roles = ctx.setting("roles")
+    print("roles:", roles)
+    if roles and not any(r["id"] in ctx.author.roles for r in roles):
+        raise CheckFailure(
+            "Missing Roles\n" + "\n".join([f"- {i['name']}" for i in roles]),
+            fmt="diff",
+        )
+    return True
 
 
 class ReminderView(View):
-    KEY = "store"
+    KEY = "timer-store"
 
     def __init__(self, *a, key: str, **k):
         super().__init__()
@@ -41,8 +53,13 @@ class Timers(SquidPlugin):
     def __init__(self, bot):
         self.bot = bot
 
-    @command(name="timer", aliases=["t"])
-    def timer(
+    @command(name="timer")
+    def timer(self, ctx: CommandContext):
+        ...
+
+    @timer.subcommand(name="start")
+    # @commands.check(has_role)
+    def start(
         self, ctx: CommandContext, *, time: str, title: str = "Timer"
     ) -> InteractionResponse:
         """
@@ -62,9 +79,12 @@ class Timers(SquidPlugin):
         store_key = uuid.uuid4().hex
 
         stamp = int((now() + delta).timestamp())
+
+        components = None
+
         message = ctx.send(
             embed=Embed(
-                description=f"Ends <t:{stamp}:R>",
+                description=ctx.setting("description", time=f"<t:{stamp}:R>"),
                 timestamp=now() + delta,
             )
             .set_author(name=title, icon_url=ctx.author.avatar_url)
@@ -100,7 +120,7 @@ class Timers(SquidPlugin):
             ephemeral=True,
         )
 
-    @command(name="timers", aliases=["tlist", "tls"])
+    @timer.subcommand(name="list")
     def timers(self, ctx, user=None, channel=None) -> Embed:
         """
         Get a list of timers

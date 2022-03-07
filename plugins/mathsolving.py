@@ -3,7 +3,7 @@ from squid.bot import command, SquidPlugin
 import expr
 
 
-class Math(SquidPlugin):
+class MathSolving(SquidPlugin):
     def __init__(self, bot):
         self.bot = bot
 
@@ -21,4 +21,4 @@ class Math(SquidPlugin):
 
 
 def setup(bot):
-    bot.add_plugin(Math(bot))
+    bot.add_plugin(MathSolving(bot))

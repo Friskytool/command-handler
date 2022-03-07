@@ -1,10 +1,11 @@
 from functools import wraps
 import traceback
-from typing import Callable, Optional
+from typing import TYPE_CHECKING, Callable, Optional
 import sentry_sdk
 from expr.errors import Gibberish, NumberOverflow, UnknownPointer
-
-from squid.bot.errors import CheckFailure, CommandFailed, SquidError
+import requests
+from pprint import pprint
+from squid.bot.errors import CheckFailure, SquidError
 from squid.models.enums import InteractionType
 from squid.models.interaction import Interaction, InteractionResponse
 from squid.http import HttpClient
@@ -14,7 +15,6 @@ from discord import Embed, Color
 from .plugin import SquidPlugin
 from discord import SyncWebhook as Webhook
 from squid.models.functions import Lazy
-from .command import command
 from .context import CommandContext, ComponentContext, SquidContext
 from squid.flask_support import flask_compat
 
@@ -45,8 +45,9 @@ class SquidBot(object):
         self._commands = {}
         self._handlers = {}
         self._checks = []
+        self.session = requests.Session()
 
-        self.http = HttpClient(token)
+        self.http = HttpClient(token, session=self.session)
 
         self.__dict__.update(
             {k[6:]: v for k, v in attrs.items() if k.startswith("squid_")}
@@ -102,13 +103,14 @@ class SquidBot(object):
     def remove_handler(self, handler_name: str) -> Optional[Callable]:
         return self._handlers.pop(handler_name, None)
 
-    def unknown_command(self, interaction: Interaction) -> InteractionResponse:
+    def unknown_command(self, ctx: CommandContext) -> InteractionResponse:
         return InteractionResponse.channel_message(
             embed=Embed(
                 title="Unknown Interaction",
-                description="Unknown interaction: {}".format(interaction.data.name),
-                color=Color.red(),
-            )
+                description="Unknown interaction: {}".format(ctx.interaction.data.name),
+                color=self.colors["error"],
+            ),
+            ephemeral=True,
         )
 
     def unknown_component(self, interaction: Interaction) -> InteractionResponse:
@@ -125,6 +127,7 @@ class SquidBot(object):
         return cls(self, interaction)
 
     def on_error(self, ctx: CommandContext, error: Exception) -> InteractionResponse:
+        print(repr(error))
         if isinstance(error, NumberOverflow):
             embed = Embed(
                 title="Number Overflow",
@@ -135,6 +138,12 @@ class SquidBot(object):
             embed = Embed(
                 title="Gibberish",
                 description=f"```cs\n{error.friendly}\n```",
+                color=ctx.bot.colors["error"],
+            )
+        elif isinstance(error, CheckFailure):
+            embed = Embed(
+                title="Check Failure",
+                description=error.message,
                 color=ctx.bot.colors["error"],
             )
         else:
@@ -150,6 +159,7 @@ class SquidBot(object):
 
     def invoke(self, ctx: SquidContext) -> Optional[InteractionResponse]:
         if ctx.interaction.type == InteractionType.APPLICATION_COMMAND:
+            pprint(ctx)
             try:
                 if ctx.command is not None:
                     if self.can_run(ctx):
@@ -157,11 +167,11 @@ class SquidBot(object):
                             "command",
                             {"name": ctx.command.qualified_name, "ctx": ctx},
                         )
-                        return ctx.invoke(ctx.command)
+                        return ctx.command.invoke(ctx)
                     raise CheckFailure("This command is disabled")
                 else:
-                    return self.unknown_command(ctx.interaction)
-            except SquidError as e:
+                    return self.unknown_command(ctx)
+            except Exception as e:
                 return self.on_error(ctx, e)
         elif ctx.interaction.type == InteractionType.MESSAGE_COMPONENT:
             try:
@@ -181,7 +191,6 @@ class SquidBot(object):
             return None
 
     def can_run(self, ctx: CommandContext) -> bool:
-        print(self._checks)
         if len(self._checks) > 0:
             return all([check(ctx) for check in self._checks])
         else:
@@ -201,11 +210,11 @@ class SquidBot(object):
             pass
 
     @flask_compat
-    def process(self, interaction):
+    def process(self, interaction: Interaction):
         if interaction.type == InteractionType.APPLICATION_COMMAND:
             ctx = self.get_context(interaction)
             if ctx.command is None:
-                return self.unknown_command(interaction)
+                return self.unknown_command(ctx)
 
         elif interaction.type == InteractionType.MESSAGE_COMPONENT:
 

@@ -94,6 +94,10 @@ class SquidPlugin(metaclass=PluginMeta):
         return self.__cog_name__
 
     @property
+    def db_name(self) -> str:
+        return self.qualified_name.lower()
+
+    @property
     def description(self) -> str:
         """:class:`str`: Returns the cog's description, typically the cleaned docstring."""
         return self.__cog_description__

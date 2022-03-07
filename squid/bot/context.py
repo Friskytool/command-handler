@@ -1,54 +1,57 @@
 from functools import wraps
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional
 
 from sentry_sdk.api import capture_exception, push_scope
+
 from squid.bot.errors import SquidError
 from squid.models.enums import ApplicationCommandOptionType
 from squid.models.functions import Lazy
-from squid.models.interaction import ApplicationCommandOption, InteractionResponse
+from squid.models.interaction import (
+    ApplicationCommand,
+    ApplicationCommandOption,
+    InteractionResponse,
+)
 from squid.models.member import Member, User
 from squid.models.views import ButtonData
 from ..models import Interaction
 
+if TYPE_CHECKING:
+    from squid.bot import SquidBot
+    from squid.http import HttpClient
+    from squid.bot.command import SquidCommand
+
 
 class SquidContext(object):
     def __init__(self, bot, interaction: Interaction):
-        self.interaction = interaction
-        self.bot = bot
-        self.http = bot.http
+        self.interaction: Interaction = interaction
+        self.bot: "SquidBot" = bot
+        self.http: "HttpClient" = bot.http
 
-        self.interaction_id = interaction.id
-        self.application_id = interaction.application_id
+        self.interaction_id: int = interaction.id
+        self.application_id: int = interaction.application_id
         self.interaction_type = interaction.type
         self.interaction_data = interaction.data
 
-        self.guild_id = interaction.guild_id
+        self.guild_id: str = str(interaction.guild_id)  # casting for rust compat
         self.channel_id = interaction.channel_id
 
         self._user = {"user": interaction.user, "member": interaction.member}
 
-        self._token = interaction.token
-        self._message = interaction.message
-        self.respond = InteractionResponse.channel_message
+        self._token: str = interaction.token
+        self._message: str = interaction.message
+        self.respond: Callable[...] = InteractionResponse.channel_message
 
     @property
-    def token(self):
+    def token(self) -> str:
         return self._token
 
     @property
-    def author(self):
+    def author(self) -> Dict[str, Any]:
         """Discord will either pass in a user or member object this will return a mix"""
 
         if self._user["member"]:
             return self._user["member"]
         return self._user["user"]
-
-    # you should probably never do this
-    def __getattribute__(self, name: str):
-        obj = object.__getattribute__(self, name)
-        if isinstance(obj, Lazy):
-            with obj:
-                return obj
-        return obj
 
     def _resolve_id(self, typ: str):
         """Given an id we need to pull the data from resolved if present
@@ -91,7 +94,30 @@ class SquidContext(object):
 class CommandContext(SquidContext):
     def __init__(self, bot, interaction: Interaction):
         super().__init__(bot, interaction)
-        self.command = bot.get_command(interaction.data.name)
+        self.command: "SquidCommand" = self._get_command(bot, interaction.data)
+
+    def _get_command(self, bot: "SquidBot", cmd: "ApplicationCommand"):
+        """Get the actual name of the command including subcommands
+
+        Args:
+            interaction (Interaction): The interaction for the command name
+        """
+
+        names = [cmd.name]
+        s = cmd.options
+        for option in s:
+            if option.type == ApplicationCommandOptionType.SUB_COMMAND:
+                names.append(option.name)
+                s.extend(option.options)
+
+        parent = bot
+        name = ""
+        for i in range(len(names)):
+            name = " ".join(names[: i + 1])
+            parent = parent.get_command(name)
+            if not parent:
+                return None
+        return parent
 
     def _resolve(self, i: ApplicationCommandOption):
 
@@ -124,10 +150,18 @@ class CommandContext(SquidContext):
 
     @property
     def kwargs(self) -> dict:
-        return {i.name: self._resolve(i) for i in self.interaction.data.options}
+
+        return {
+            i.name: self._resolve(i)
+            for i in [
+                x
+                for x in self.interaction.data.options
+                if x.type != ApplicationCommandOptionType.SUB_COMMAND
+            ]
+        }
 
     def __repr__(self):
-        return "<CommandContext: {}>".format(self.interaction)
+        return f"<CommandContext: {self.interaction!r}>"
 
     def invoke(self, command, *args, **kwargs):
         try:
@@ -155,6 +189,25 @@ class CommandContext(SquidContext):
                 if hasattr(self.bot, "on_error"):
                     return self.bot.on_error(self, e)
                 raise SquidError(e)
+
+    # Settings
+
+    @property
+    def settings(self) -> dict:
+        with self.bot.settings as s:
+            return s.settings.get(self.command.cog.db_name, {})
+
+    def get_setting(self, name: str):
+        return self.settings.get(name)
+
+    def setting(self, name: str, **kw):
+        """Gets and parses tagscript in the setting if kwargs is provided
+
+        Args:
+            name (str): The name of the setting
+        """
+        with self.bot.settings as s:
+            return s.get(self, name, **kw)
 
 
 class ComponentContext(SquidContext):

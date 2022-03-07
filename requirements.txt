@@ -10,6 +10,7 @@ click==8.0.3
 cloudevents==1.2.0
 deprecation==2.1.0
 git+https://github.com/Rapptz/discord.py
+git+https://github.com/phenom4n4n/TagScript
 expr.py==0.3.0
 Flask==2.0.2
 functions-framework==3.0.0

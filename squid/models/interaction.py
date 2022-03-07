@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from discord import AllowedMentions, Embed
 from .enums import (
     InteractionResponseType,
@@ -29,17 +29,17 @@ class Interaction(object):
     def __init__(
         self,
         *,
-        id,
-        application_id,
-        type,
-        data,
-        guild_id,
-        channel_id,
-        member,
-        user,
-        token,
-        version,
-        message,
+        id: str,
+        application_id: int,
+        type: InteractionType,
+        data: dict,
+        guild_id: int,
+        channel_id: int,
+        member: Optional[Member],
+        user: User,
+        token: str,
+        version: str,
+        message: Optional[str],
     ):
         self.id = id
         self.application_id = application_id

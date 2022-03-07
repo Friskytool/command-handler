@@ -1,8 +1,6 @@
 from discord import Embed
 from squid.bot import command, SquidPlugin, CommandContext
-from pprint import pprint
 import inspect
-from squid.models import InteractionResponse
 
 
 class Utility(SquidPlugin):  # todo fill in cog
@@ -13,9 +11,8 @@ class Utility(SquidPlugin):  # todo fill in cog
     def ping(self, ctx: CommandContext):
         return ctx.respond(
             embed=Embed(
-                title="Pong!",
-                description="It works!\n",
-                color=0x00FF00,
+                description=f"Pong!",
+                color=self.bot.colors["primary"],
             ),
             ephemeral=True,
         )
