@@ -76,7 +76,7 @@ class Giveaways(SquidPlugin):
                 timestamp=now() + delta,
                 color=self.bot.colors["primary"],
             )
-            .set_footer(text=f"{int(winners)} winner{s(winners)} | Ends at ")
+            .set_footer(text=f"{winners} winner{s(winners)} | Ends at ")
             .to_dict(),
             components=GiveawayView(
                 key=store_key,
@@ -94,7 +94,7 @@ class Giveaways(SquidPlugin):
                     "guild_id": str(ctx.guild_id),
                     "store_key": store_key,
                     "end": now() + delta,
-                    "winners": int(winners),
+                    "winners": winners,
                     "start": now(),
                     "active": True,
                     "prize": prize,
@@ -114,10 +114,9 @@ class Giveaways(SquidPlugin):
     @command()
     def gend(self, ctx: CommandContext, giveaway_id: int):
         with ctx.bot.db as db:
-            x = db.find_one_and_update(
+            if x := db.find_one_and_update(
                 {"message_id": giveaway_id}, {"$set": {"end": now()}}
-            )
-            if x:
+            ):
                 return ctx.respond(
                     embed=Embed(
                         description="Ended the giveaway",

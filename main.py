@@ -50,23 +50,17 @@ logging.basicConfig(level=logging.DEBUG)
 def setup_db():
     client = MongoClient(os.getenv("MONGO_URL"))
 
-    if bool(os.getenv("PRODUCTION")):
-        db = client.Main
-    else:
-        db = client.Test
-    return db
+    return client.Main if bool(os.getenv("PRODUCTION")) else client.Test
 
 
 @lazy
 def setup_redis():
-    if url := os.getenv("REDIS_URL"):
-        k = {}
-        if password := os.getenv("REDIS_PASS"):
-            k["password"] = password
-        redis: Redis = Redis.from_url(url, **k)
-    else:
-        redis: Redis = Redis()
-    return redis
+    if not (url := os.getenv("REDIS_URL")):
+        return Redis()
+    k = {}
+    if password := os.getenv("REDIS_PASS"):
+        k["password"] = password
+    return Redis.from_url(url, **k)
 
 
 @lazy
@@ -107,9 +101,7 @@ def setup_settings():
     # would put this on startup but cold-boot times are kiler
     req = requests.get(os.getenv("API_URL") + "/static/settings.json")
 
-    settings = Settings.from_data(req.json())
-
-    return settings
+    return Settings.from_data(req.json())
 
 
 @SquidBot.from_lazy()

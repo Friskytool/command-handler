@@ -13,9 +13,7 @@ def flask_compat(f):
 
         if not isinstance(response, InteractionResponse):
             raise TypeError(
-                "Response must be an InteractionResponse object but recieved {}: ({})".format(
-                    type(response), response.__repr__()
-                )
+                f"Response must be an InteractionResponse object but recieved {type(response)}: ({response.__repr__()})"
             )
 
         return jsonify(response.to_dict())

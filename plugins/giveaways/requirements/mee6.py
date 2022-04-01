@@ -19,7 +19,7 @@ class Mee6(Requirement):
         # self.api: AMARIAPIHANDLER = AMARIAPIHANDLER(bot)
 
     def display(self, data):
-        return "Mee6 Level: " + str(data[0])
+        return f"Mee6 Level: {str(data[0])}"
 
     def convert(self, _: CommandContext, argument: int):
         if argument <= 0:

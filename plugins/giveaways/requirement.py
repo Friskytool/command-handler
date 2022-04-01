@@ -52,19 +52,19 @@ class Requirement(object):
         aliases = getter("aliases") or []
         new_cls.max = getter("max") or 1
         new_cls.priority = getter("priority") or RequirementPriority.CACHE
-        new_cls.invokes = list(set([new_cls.name, *[i.lower() for i in aliases]]))
+        new_cls.invokes = list({new_cls.name, *[i.lower() for i in aliases]})
 
         return new_cls
 
     @classmethod
-    def display(self, data) -> List[str]:
+    def display(cls, data) -> List[str]:
         """
         Function that gets called whenever displaying the requirement
         """
         raise NotImplementedError
 
     @classmethod
-    async def convert(self, ctx: CommandContext, argument: str) -> List[object]:
+    async def convert(cls, ctx: CommandContext, argument: str) -> List[object]:
         """
         Parses the input and returns the storage value as a list
         """

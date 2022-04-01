@@ -107,7 +107,7 @@ class SquidBot(object):
         return InteractionResponse.channel_message(
             embed=Embed(
                 title="Unknown Interaction",
-                description="Unknown interaction: {}".format(ctx.interaction.data.name),
+                description=f"Unknown interaction: {ctx.interaction.data.name}",
                 color=self.colors["error"],
             ),
             ephemeral=True,
@@ -161,30 +161,28 @@ class SquidBot(object):
         if ctx.interaction.type == InteractionType.APPLICATION_COMMAND:
             pprint(ctx)
             try:
-                if ctx.command is not None:
-                    if self.can_run(ctx):
-                        sentry_sdk.set_context(
-                            "command",
-                            {"name": ctx.command.qualified_name, "ctx": ctx},
-                        )
-                        return ctx.command.invoke(ctx)
-                    raise CheckFailure("This command is disabled")
-                else:
+                if ctx.command is None:
                     return self.unknown_command(ctx)
+                if self.can_run(ctx):
+                    sentry_sdk.set_context(
+                        "command",
+                        {"name": ctx.command.qualified_name, "ctx": ctx},
+                    )
+                    return ctx.command.invoke(ctx)
+                raise CheckFailure("This command is disabled")
             except Exception as e:
                 return self.on_error(ctx, e)
         elif ctx.interaction.type == InteractionType.MESSAGE_COMPONENT:
             try:
-                if ctx.handler is not None:
-                    if self.can_run(ctx):
-                        sentry_sdk.set_context(
-                            "message-component",
-                            {"name": ctx.data.typ, "ctx": ctx},
-                        )
-                        return ctx.invoke(ctx.handler)
-                    raise CheckFailure("This component is disabled")
-                else:
+                if ctx.handler is None:
                     return self.unknown_component(ctx.interaction)
+                if self.can_run(ctx):
+                    sentry_sdk.set_context(
+                        "message-component",
+                        {"name": ctx.data.typ, "ctx": ctx},
+                    )
+                    return ctx.invoke(ctx.handler)
+                raise CheckFailure("This component is disabled")
             except SquidError as e:
                 return self.on_error(ctx, e)
         else:
@@ -192,7 +190,7 @@ class SquidBot(object):
 
     def can_run(self, ctx: CommandContext) -> bool:
         if len(self._checks) > 0:
-            return all([check(ctx) for check in self._checks])
+            return all(check(ctx) for check in self._checks)
         else:
             return True
 

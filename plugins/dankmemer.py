@@ -17,9 +17,9 @@ class DankMemer(SquidPlugin):
                 print("items: ", items)
                 actual_item = process.extractOne(item, items)
                 if not actual_item:
-                    raise CommandFailed("Item `{}` not found!".format(item))
+                    raise CommandFailed(f"Item `{item}` not found!")
 
-                item_name = redis.get("dank:item:{}:name".format(actual_item[0]))
+                item_name = redis.get(f"dank:item:{actual_item[0]}:name")
                 item_id = actual_item[0]
 
                 item_data = db.dank_memer_trades.aggregate(

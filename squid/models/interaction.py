@@ -330,9 +330,7 @@ class InteractionResponse(object):
         )
 
     def default(self, o):
-        if isinstance(o, InteractionResponseType):
-            return None
-        return o.__dict__
+        return None if isinstance(o, InteractionResponseType) else o.__dict__
 
     def to_dict(self):
         return {

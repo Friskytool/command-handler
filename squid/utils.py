@@ -9,12 +9,12 @@ PY_310 = sys.version_info >= (3, 10)
 
 
 def format_list(l: list):
-    if len(l) == 0:
+    if not l:
         return ""
     elif len(l) == 1:
         return str(l[0])
     elif len(l) == 2:
-        return "{} and {}".format(l[0], l[1])
+        return f"{l[0]} and {l[1]}"
     else:
         return ", ".join(l[:-1]) + " and " + l[-1]
 
@@ -62,8 +62,7 @@ def display_time(seconds, *, granularity=10, wrap="**"):
     result = []
     base = f"{wrap}{{0}}{wrap} {{1}}"
     for name, count in intervals:
-        value = seconds // count
-        if value:
+        if value := seconds // count:
             seconds -= value * count
             if value == 1:
                 name = name.rstrip("s")
@@ -170,9 +169,8 @@ def parse_time(time_str):
     parts = regex.match(time_str)
     assert (
         parts is not None
-    ), "Could not parse any time information from '{}'.  Examples of valid strings: '8h', '2d8h5m20s', '2m4s'".format(
-        time_str
-    )
+    ), f"Could not parse any time information from '{time_str}'.  Examples of valid strings: '8h', '2d8h5m20s', '2m4s'"
+
     time_params = {
         name: float(param) for name, param in parts.groupdict().items() if param
     }

@@ -16,7 +16,7 @@ from discord.ext import commands
 def has_role(ctx):
     roles = ctx.setting("roles")
     print("roles:", roles)
-    if roles and not any(r["id"] in ctx.author.roles for r in roles):
+    if roles and all(r["id"] not in ctx.author.roles for r in roles):
         raise CheckFailure(
             "Missing Roles\n" + "\n".join([f"- {i['name']}" for i in roles]),
             fmt="diff",
@@ -58,7 +58,6 @@ class Timers(SquidPlugin):
         ...
 
     @timer.subcommand(name="start")
-    # @commands.check(has_role)
     def start(
         self, ctx: CommandContext, *, time: str, title: str = "Timer"
     ) -> InteractionResponse:
@@ -91,7 +90,7 @@ class Timers(SquidPlugin):
             .set_footer(text="Ends at ")
             .to_dict(),
             components=ReminderView(
-                key="timers:{}".format(store_key),
+                key=f"timers:{store_key}",
                 style=ButtonStyle.primary,
                 label="Remind Me",
             ).to_components(),

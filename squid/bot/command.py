@@ -212,9 +212,8 @@ class SquidCommand(_BaseCommand):
 
                 except AttributeError:
                     local_check = None
-                if local_check is not None:
-                    if not cog.cog_check(ctx):
-                        return False
+                if local_check is not None and not cog.cog_check(ctx):
+                    return False
 
             if not self.checks:
                 return True
@@ -370,9 +369,8 @@ class SquidCommand(_BaseCommand):
         ``one two three``.
         """
 
-        parent = self.full_parent_name
-        if parent:
-            return parent + " " + self.name
+        if parent := self.full_parent_name:
+            return f"{parent} {self.name}"
         return self.name
 
     def get_command(self, name: str):
