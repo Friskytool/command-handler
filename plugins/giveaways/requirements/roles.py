@@ -13,7 +13,7 @@ class Role(Requirement):
 
     def display(self, data) -> str:
         print(data)
-        return (f"Required Role{s(data)}: " + format_list([f"<@&{i}>" for i in data]))
+        return f"Required Role{s(data)}: " + format_list([f"<@&{i}>" for i in data])
 
     def convert(self, ctx: CommandContext, argument):
         roles = []

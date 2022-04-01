@@ -112,9 +112,9 @@ class Member:
 
     @property
     def safe_name(self):
-        return (
-            self.name if len(self.name) <= 32 else f'{self.name[:32]}...'
-        ).replace("@", "@\u200b")
+        return (self.name if len(self.name) <= 32 else f"{self.name[:32]}...").replace(
+            "@", "@\u200b"
+        )
 
     @property
     def bot(self):

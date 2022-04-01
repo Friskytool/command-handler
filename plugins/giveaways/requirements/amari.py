@@ -33,8 +33,8 @@ class Amari(Requirement):
         url = f"https://amaribot.com/api/v1/guild/raw/leaderboard/{guild_id}"
         print("FETCHING AMARI DATA")
         with ctx.bot.session.get(
-                url, headers={"Authorization": self.bot.amari_auth}
-            ) as req:
+            url, headers={"Authorization": self.bot.amari_auth}
+        ) as req:
             data = req.json()["data"] if req.status_code == 200 else []
         with ctx.bot.redis as redis:
             for d in data:

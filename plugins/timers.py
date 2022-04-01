@@ -96,7 +96,6 @@ class Timers(SquidPlugin):
             ).to_components(),
         )
 
-
         with ctx.bot.db as db:
             db.timers.insert_one(
                 {

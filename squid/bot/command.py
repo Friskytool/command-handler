@@ -370,7 +370,7 @@ class SquidCommand(_BaseCommand):
         """
 
         if parent := self.full_parent_name:
-            return f'{parent} {self.name}'
+            return f"{parent} {self.name}"
         return self.name
 
     def get_command(self, name: str):

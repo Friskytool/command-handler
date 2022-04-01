@@ -85,7 +85,6 @@ class Giveaways(SquidPlugin):
             ).to_components(),
         )
 
-
         with ctx.bot.db as db:
             db.giveaways.insert_one(
                 {
@@ -103,7 +102,6 @@ class Giveaways(SquidPlugin):
                     "data": {},
                 }
             )
-
 
         return ctx.respond(
             embed=Embed(

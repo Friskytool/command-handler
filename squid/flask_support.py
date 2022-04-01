@@ -16,7 +16,6 @@ def flask_compat(f):
                 f"Response must be an InteractionResponse object but recieved {type(response)}: ({response.__repr__()})"
             )
 
-
         return jsonify(response.to_dict())
 
     return wrapper

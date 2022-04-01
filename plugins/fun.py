@@ -124,17 +124,12 @@ inv_morse = {k: v for v, k in _morse.items()}
 
 
 def to_keycap(c: int) -> str:
-    return "\N{KEYCAP TEN}" if c == 10 else f'{c}⃣'
+    return "\N{KEYCAP TEN}" if c == 10 else f"{c}⃣"
 
 
 def morse_translate(morse):
     morse = morse.lower()
-    if (
-        text := morse.replace(".", "")
-        .replace("-", "")
-        .replace("/", "")
-        .strip()
-    ):
+    if text := morse.replace(".", "").replace("-", "").replace("/", "").strip():
         _d = _morse
         iterator = iter(morse)
         more = " "
