@@ -76,14 +76,6 @@ class HttpClient(_HTTPClient):
 
                 data = json_or_text(response)
                 remaining = response.headers.get("X-Ratelimit-Remaining")
-                if remaining == "0" and response.status_code != 429:
-                    pass
-                    # we've depleted our current bucket
-                    # delta = utils._parse_ratelimit_header(response, use_clock=self.use_clock)
-                    # # _log.debug('A rate limit bucket has been exhausted (bucket: %s, retry: %s).', bucket, delta)
-                    # maybe_lock.defer()
-                    # self.loop.call_later(delta, lock.release)
-
                 # the request was successful so just return the text/json
                 if 300 > response.status_code >= 200:
                     return data
@@ -135,7 +127,6 @@ class HttpClient(_HTTPClient):
                 else:
                     raise HTTPException(response, data)
 
-            # This is handling exceptions from the request
             except OSError as e:
                 # Connection reset by peer
                 if tries < 4 and e.errno in (54, 10054):

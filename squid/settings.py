@@ -61,10 +61,10 @@ class Settings(object):
         with ctx.bot.db as db:
             data = db.settings.find_one({"guild_id": str(ctx.guild_id)})
         self.cache[ctx.guild_id] = data
-        r = {}
-        for v, k in self.settings.get(ctx.command.cog.db_name, {}).items():
-            r[v] = data.get(ctx.command.cog.db_name, {}).get(v, k.default)
-        return r
+        return {
+            v: data.get(ctx.command.cog.db_name, {}).get(v, k.default)
+            for v, k in self.settings.get(ctx.command.cog.db_name, {}).items()
+        }
 
     def get(self, ctx: "CommandContext", name: str, **kw) -> str:
         settings_data = self.guild_settings(ctx)

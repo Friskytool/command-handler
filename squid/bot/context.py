@@ -49,9 +49,7 @@ class SquidContext(object):
     def author(self) -> Dict[str, Any]:
         """Discord will either pass in a user or member object this will return a mix"""
 
-        if self._user["member"]:
-            return self._user["member"]
-        return self._user["user"]
+        return self._user["member"] or self._user["user"]
 
     def _resolve_id(self, typ: str):
         """Given an id we need to pull the data from resolved if present

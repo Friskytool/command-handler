@@ -19,7 +19,7 @@ class Amari(Requirement):
         # self.api: AMARIAPIHANDLER = AMARIAPIHANDLER(bot)
 
     def display(self, data):
-        return "Amari Level: " + str(data[0])
+        return f"Amari Level: {str(data[0])}"
 
     def convert(self, _: CommandContext, argument: int):
         if argument <= 0:
@@ -33,13 +33,9 @@ class Amari(Requirement):
         url = f"https://amaribot.com/api/v1/guild/raw/leaderboard/{guild_id}"
         print("FETCHING AMARI DATA")
         with ctx.bot.session.get(
-            url, headers={"Authorization": self.bot.amari_auth}
-        ) as req:
-            if req.status_code == 200:
-                data = req.json()["data"]
-            else:
-                data = []
-
+                url, headers={"Authorization": self.bot.amari_auth}
+            ) as req:
+            data = req.json()["data"] if req.status_code == 200 else []
         with ctx.bot.redis as redis:
             for d in data:
                 redis.set(f"amari:cache:{guild_id}:{d['id']}", d["level"], ex=60 * 10)

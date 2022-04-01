@@ -10,10 +10,7 @@ class Utility(SquidPlugin):  # todo fill in cog
     @command()
     def ping(self, ctx: CommandContext):
         return ctx.respond(
-            embed=Embed(
-                description=f"Pong!",
-                color=self.bot.colors["primary"],
-            ),
+            embed=Embed(description="Pong!", color=self.bot.colors["primary"]),
             ephemeral=True,
         )
 

@@ -13,16 +13,14 @@ class Role(Requirement):
 
     def display(self, data) -> str:
         print(data)
-        return (
-            "Required Role" + s(data) + ": " + format_list([f"<@&{i}>" for i in data])
-        )
+        return (f"Required Role{s(data)}: " + format_list([f"<@&{i}>" for i in data]))
 
     def convert(self, ctx: CommandContext, argument):
         roles = []
         for role_str in argument.split(","):
             role_str = role_str.strip()
             if not role_str.isdigit() or len(role_str) > 20 or len(role_str) < 16:
-                raise ArgumentParsingError("Invalid role ID ({})".format(role_str))
+                raise ArgumentParsingError(f"Invalid role ID ({role_str})")
             roles.append(role_str)
         return roles  # todo: latr
 
