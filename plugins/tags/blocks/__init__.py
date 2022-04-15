@@ -15,6 +15,5 @@ stable_blocks = [
     RedirectBlock(),
     RequireBlock(),
     BlacklistBlock(),
-    SilentBlock()
+    SilentBlock(),
 ]
-    

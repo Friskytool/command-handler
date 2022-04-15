@@ -58,5 +58,6 @@ class CheckFailure(CommandFailed):
         kw.setdefault("fmt", "diff")
         super().__init__(*a, **kw)
 
+
 class RequireCheckFailure(CheckFailure):
     ...

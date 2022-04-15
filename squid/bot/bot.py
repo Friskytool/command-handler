@@ -175,7 +175,9 @@ class SquidBot(object):
             )
         return InteractionResponse.channel_message(embed=embed, ephemeral=False)
 
-    def _get_command(self, _interaction: "Interaction", cmd: "ApplicationCommand", names: list = None):
+    def _get_command(
+        self, _interaction: "Interaction", cmd: "ApplicationCommand", names: list = None
+    ):
         """Get the actual name of the command including subcommands
 
         Args:
