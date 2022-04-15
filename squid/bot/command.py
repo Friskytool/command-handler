@@ -134,7 +134,7 @@ class SquidCommand(_BaseCommand):
             checks = kwargs.get("checks", [])
 
         self.cog = kwargs.get("cog")
-        
+
         self.checks: List[Callable] = checks
         self._commands: Dict[str, Type[Self]] = {}
 

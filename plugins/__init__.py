@@ -8,6 +8,7 @@ from .dankmemer import DankMemer, setup as dankmemer_setup
 from .giveaways import Giveaways, setup as giveaways_setup
 from .tags import Tags, setup as tags_setup
 
+
 def setup(bot):
     utility_setup(bot)
     mathsolving_setup(bot)

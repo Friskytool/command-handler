@@ -185,7 +185,7 @@ def parse_time(time_str):
     """
     if time_str.isdigit():
         time_str += "s"
-        
+
     parts = regex.match(time_str)
     assert (
         parts is not None

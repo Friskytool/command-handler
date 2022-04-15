@@ -31,7 +31,7 @@ class HiddenBlock(Block):
     # This is an undocumented block and should not be used.
     def will_accept(self, ctx: Context) -> bool:
         dec = ctx.verb.declaration.lower()
-        return any([dec == "hidden", dec == "hide", dec=="delete"])
+        return any([dec == "hidden", dec == "hide", dec == "delete"])
 
     def process(self, ctx: Context) -> Optional[str]:
         if "hidden" in ctx.response.actions.keys():
