@@ -1,7 +1,8 @@
 from typing import Any, Dict, Optional, Sequence
 from discord.http import Route, json_or_text
 from discord import utils, File
-from discord.errors import HTTPException, Forbidden, NotFound, DiscordServerError
+from discord.errors import Forbidden, NotFound, DiscordServerError
+from .errors import HTTPException
 from urllib.parse import quote as _uriquote
 import sys
 from requests.models import Response
@@ -55,7 +56,7 @@ class HttpClient(_HTTPClient):
 
         if "json" in kwargs:
             headers["Content-Type"] = "application/json"
-            kwargs["data"] = utils._to_json(kwargs.pop("json"))
+            kwargs["data"] = utils._to_json(kwargs.pop("json")).encode("utf8")
 
         try:
             reason = kwargs.pop("reason")

@@ -88,12 +88,6 @@ class SquidCommand(_BaseCommand):
         self.__original_kwargs__ = kwargs.copy()
         return self
 
-    def __init__(self, name, aliases, description, options):
-        self.name = name
-        self.aliases = aliases
-        self.description = description
-        self.options = options
-
     def __init__(self, func, **kwargs):
         name = kwargs.get("name") or func.__name__
         if not isinstance(name, str):
@@ -139,6 +133,8 @@ class SquidCommand(_BaseCommand):
         except AttributeError:
             checks = kwargs.get("checks", [])
 
+        self.cog = kwargs.get("cog")
+        
         self.checks: List[Callable] = checks
         self._commands: Dict[str, Type[Self]] = {}
 
@@ -377,6 +373,10 @@ class SquidCommand(_BaseCommand):
 
     def get_command(self, name: str):
         return self._commands.get(name)
+
+    @property
+    def commands(self):
+        return self._commands.values()
 
     def add_command(self, command: Type[Self]):
         self._commands[command.qualified_name] = command

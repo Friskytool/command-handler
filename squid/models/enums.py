@@ -1,47 +1,29 @@
 from enum import Enum
 
 __all__ = (
-    "InteractionType",
     "ApplicationCommandType",
     "ApplicationCommandOptionType",
-    "InteractionResponseType",
 )
 
 
-class InteractionType(Enum):
-    PING = 1
-    APPLICATION_COMMAND = 2
-    MESSAGE_COMPONENT = 3
-    APPLICATION_COMMAND_AUTOCOMPLETE = 4
-
-
 class ApplicationCommandType(Enum):
-    CHAT_INPUT = (
+    chat_input = (
         1  # Slash commands; a text-based command that shows up when a user types /
     )
-    USER = 2  # A UI-based command that shows up when you right click or tap on a user
-    MESSAGE = (
+    user = 2  # A UI-based command that shows up when you right click or tap on a user
+    message = (
         3  # A UI-based command that shows up when you right click or tap on a message
     )
 
 
 class ApplicationCommandOptionType(Enum):
-    SUB_COMMAND = 1
-    SUB_COMMAND_GROUP = 2
-    STRING = 3
-    INTEGER = 4  #       Any integer between -2^53 and 2^53
-    BOOLEAN = 5
-    USER = 6
-    CHANNEL = 7  #       Includes all channel types + categories
-    ROLE = 8
-    MENTIONABLE = 9  #   Includes users and roles
-    NUMBER = 10  #      Any double between -2^53 and 2^53
-
-
-class InteractionResponseType(Enum):
-    PONG = 1
-    CHANNEL_MESSAGE_WITH_SOURCE = 4
-    DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE = 5
-    DEFERRED_UPDATE_MESSAGE = 6
-    UPDATE_MESSAGE = 7
-    APPLICATION_COMMAND_AUTOCOMPLETE_RESULT = 8
+    sub_command = 1
+    sub_command_group = 2
+    string = 3
+    integer = 4
+    boolean = 5
+    user = 6
+    channel = 7
+    role = 8
+    mentionable = 9
+    number = 10

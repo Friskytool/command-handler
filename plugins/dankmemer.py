@@ -10,37 +10,8 @@ class DankMemer(SquidPlugin):
         self.bot = bot
 
     @command()
-    def dankitem(self, ctx: CommandContext, item: str):
-        with ctx.bot.db as db:
-            with ctx.bot.redis as redis:
-                items = redis.smembers("dank:items")
-                print("items: ", items)
-                actual_item = process.extractOne(item, items)
-                if not actual_item:
-                    raise CommandFailed("Item `{}` not found!".format(item))
-
-                item_name = redis.get("dank:item:{}:name".format(actual_item[0]))
-                item_id = actual_item[0]
-
-                item_data = db.dank_memer_trades.aggregate(
-                    [
-                        {"$match": {"item_id": item_id}},
-                        {"$sort": {"date": -1}},
-                        {"$limit": 100},
-                        {"$group": {"_id": None, "total": {"$avg": "$value"}}},
-                        {"$project": {"_id": 0, "total": 1}},
-                    ]
-                )[0].get("total")
-
-                return ctx.respond(
-                    embed=Embed(
-                        description=f"{item_name} is worth {item_data:,.2f}",
-                        color=self.bot.colors["primary"],
-                    )
-                )
-
-    @command()
     def trades(self, ctx: CommandContext, user=None):
+        """View yours or a users trades"""
         with ctx.bot.db as db:
             user = user or ctx.author
             user_id = str(user.id)
@@ -59,14 +30,14 @@ class DankMemer(SquidPlugin):
                 )
             ]
 
-            recieved = [
+            received = [
                 i
                 for i in db.dank_memer.aggregate(
                     [
                         {
                             "$match": {
                                 "guild_id": str(ctx.guild_id),
-                                "reciever_id": user_id,
+                                "receiver_id": user_id,
                             }
                         },
                         {"$group": {"_id": None, "amount": {"$sum": "$amount"}}},
@@ -83,7 +54,7 @@ class DankMemer(SquidPlugin):
                                 "guild_id": str(ctx.guild_id),
                                 "$or": [
                                     {"sender_id": user_id},
-                                    {"reciever_id": user_id},
+                                    {"receiver_id": user_id},
                                 ],
                                 "timestamp": {"$exists": True},
                             },
@@ -94,7 +65,7 @@ class DankMemer(SquidPlugin):
                 )
             ]
 
-            if not sent and not recieved:
+            if not sent and not received:
                 return ctx.respond(
                     embed=Embed(
                         description="This user has no trades!",
@@ -103,11 +74,11 @@ class DankMemer(SquidPlugin):
                 )
 
             sent = sent[0]["amount"] if sent else 0
-            recieved = recieved[0]["amount"] if recieved else 0
+            received = received[0]["amount"] if received else 0
 
             def fmt(rows):
                 def inner(row):
-                    return f"<@{row['sender_id']}> -> <@{row['reciever_id']}> | {row['amount']}"
+                    return f"<@{row['sender_id']}> -> <@{row['receiver_id']}> | {row['amount']}"
 
                 return "\n".join(map(inner, rows))
 
@@ -119,7 +90,7 @@ class DankMemer(SquidPlugin):
                             i.strip()
                             for i in f"""
         ```diff
-        + Recieved: {recieved:,}
+        + received: {received:,}
         - Sent: {sent:,}
         ```
         

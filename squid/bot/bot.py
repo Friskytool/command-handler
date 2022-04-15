@@ -1,22 +1,29 @@
 from functools import wraps
 import traceback
 from typing import TYPE_CHECKING, Callable, Optional
+from flask import jsonify
 import sentry_sdk
 from expr.errors import Gibberish, NumberOverflow, UnknownPointer
 import requests
-from pprint import pprint
-from squid.bot.errors import CheckFailure, SquidError
-from squid.models.enums import InteractionType
-from squid.models.interaction import Interaction, InteractionResponse
+from squid.bot.errors import CheckFailure, CommandFailed, SquidError
+from squid.models.commands import CreateApplicationCommand
+from squid.models.enums import ApplicationCommandOptionType
+from squid.models.interaction import (
+    ApplicationCommand,
+    Interaction,
+    InteractionResponse,
+)
 from squid.http import HttpClient
 from squid.models.views import View
+from squid.bot.state import State
 from .command import SquidCommand
-from discord import Embed, Color
+from discord import Component, Embed, Color
 from .plugin import SquidPlugin
 from discord import SyncWebhook as Webhook
 from squid.models.functions import Lazy
 from .context import CommandContext, ComponentContext, SquidContext
 from squid.flask_support import flask_compat
+from discord import InteractionType
 
 
 class SquidBot(object):
@@ -30,6 +37,7 @@ class SquidBot(object):
         secondary_color=Color.blurple(),
         error_color=Color.red(),
         # databases
+        redis=None,
         **attrs,
     ):
         self.public_key = public_key
@@ -39,7 +47,9 @@ class SquidBot(object):
             "secondary": secondary_color,
             "error": error_color,
         }
+        self.redis = redis
 
+        self.state = State(self, self.redis)
         self.__plugins = {}
 
         self._commands = {}
@@ -107,7 +117,7 @@ class SquidBot(object):
         return InteractionResponse.channel_message(
             embed=Embed(
                 title="Unknown Interaction",
-                description="Unknown interaction: {}".format(ctx.interaction.data.name),
+                description="Unknown interaction: {}".format(ctx.command_data.name),
                 color=self.colors["error"],
             ),
             ephemeral=True,
@@ -123,11 +133,7 @@ class SquidBot(object):
             ephemeral=True,
         )
 
-    def get_context(self, interaction, cls=CommandContext):
-        return cls(self, interaction)
-
     def on_error(self, ctx: CommandContext, error: Exception) -> InteractionResponse:
-        print(repr(error))
         if isinstance(error, NumberOverflow):
             embed = Embed(
                 title="Number Overflow",
@@ -146,6 +152,12 @@ class SquidBot(object):
                 description=error.message,
                 color=ctx.bot.colors["error"],
             )
+        elif isinstance(error, CommandFailed):
+            embed = Embed(
+                title=error.title,
+                description=error.message,
+                color=ctx.bot.colors["error"],
+            )
         else:
             embed = Embed(
                 title="".join(
@@ -155,25 +167,39 @@ class SquidBot(object):
                 color=self.colors["error"],
             )
             traceback.print_exc()
-        return InteractionResponse.channel_message(embed=embed, ephemeral=True)
+        if self.owner_id and int(ctx.author.id) == self.owner_id:
+            exc = traceback.format_exc()
+            c = "\\`\u200b"
+            embed.description += (
+                f"\n**`DEV TRACEBACK`**\n```py\n{exc.replace('`', c)}\n```"
+            )
+        return InteractionResponse.channel_message(embed=embed, ephemeral=False)
+
+    def _get_command(self, _interaction: "Interaction", cmd: "ApplicationCommand", names: list = None):
+        """Get the actual name of the command including subcommands
+
+        Args:
+            interaction (Interaction): The interaction for the command name
+        """
+        if names is None:
+            names = [cmd.name]
+            s = cmd.options
+            for option in s:
+                if option.type == ApplicationCommandOptionType.sub_command:
+                    names.append(option.name)
+                    s.extend(option.options)
+
+        parent = self
+        name = ""
+        for i in range(len(names)):
+            name = " ".join(names[: i + 1])
+            parent = parent.get_command(name)
+            if not parent:
+                return None
+        return parent
 
     def invoke(self, ctx: SquidContext) -> Optional[InteractionResponse]:
-        if ctx.interaction.type == InteractionType.APPLICATION_COMMAND:
-            pprint(ctx)
-            try:
-                if ctx.command is not None:
-                    if self.can_run(ctx):
-                        sentry_sdk.set_context(
-                            "command",
-                            {"name": ctx.command.qualified_name, "ctx": ctx},
-                        )
-                        return ctx.command.invoke(ctx)
-                    raise CheckFailure("This command is disabled")
-                else:
-                    return self.unknown_command(ctx)
-            except Exception as e:
-                return self.on_error(ctx, e)
-        elif ctx.interaction.type == InteractionType.MESSAGE_COMPONENT:
+        if ctx.interaction.type == InteractionType.component:
             try:
                 if ctx.handler is not None:
                     if self.can_run(ctx):
@@ -211,15 +237,42 @@ class SquidBot(object):
 
     @flask_compat
     def process(self, interaction: Interaction):
-        if interaction.type == InteractionType.APPLICATION_COMMAND:
-            ctx = self.get_context(interaction)
-            if ctx.command is None:
+        return self.state.execute(interaction)
+
+    def handle_ping(self):
+        """You can override in case discord changes stuff in the future"""
+        return InteractionResponse.pong()
+
+    def handle_application_command(
+        self, command: ApplicationCommand, interaction: Interaction
+    ):
+        ctx = CommandContext(self, command, interaction)
+        try:
+            if ctx.command is not None:
+                if self.can_run(ctx):
+                    sentry_sdk.set_context(
+                        "command",
+                        {"name": ctx.command.qualified_name, "ctx": ctx},
+                    )
+                    return ctx.command.invoke(ctx)
+                raise CheckFailure("This command is disabled")
+            else:
                 return self.unknown_command(ctx)
+        except Exception as e:
+            return self.on_error(ctx, e)
 
-        elif interaction.type == InteractionType.MESSAGE_COMPONENT:
-
-            ctx = self.get_context(interaction, cls=ComponentContext)
-
-            if ctx.handler is None:
-                return self.unknown_component(interaction)
-        return self.invoke(ctx)
+    def handle_component(self, component: Component, interaction: Interaction):
+        ctx = ComponentContext(self, component, interaction)
+        try:
+            if ctx.handler is not None:
+                if self.can_run(ctx):
+                    sentry_sdk.set_context(
+                        "message-component",
+                        {"name": ctx.data.typ, "ctx": ctx},
+                    )
+                    return ctx.invoke(ctx.handler)
+                raise CheckFailure("This component is disabled")
+            else:
+                return self.unknown_component(ctx.interaction)
+        except Exception as e:
+            return self.on_error(ctx, e)

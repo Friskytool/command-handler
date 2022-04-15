@@ -180,11 +180,9 @@ class Fun(SquidPlugin):
     #     return sizes + "\n*Bigger doesn't always mean better*"
 
     @command()
-    def morse(self, ctx, *, message: str):
+    def morse(self, ctx, message: str):
         """
-        Translate to and from morse code!
-
-        If no message is provided friskytool will comb the chat logs for a message containing morse code and decode it
+        Translate to and from morse code
         """
 
         res = morse_translate(message)[:2000]
@@ -196,8 +194,7 @@ class Fun(SquidPlugin):
 
     @command()
     def roll(self, ctx, _max: int = 6, _min: int = 1):
-        """Roll a number from the maximum {default:5} to the minimum {default:0}
-        +roll 1 6 > returns number between (and including) 1 and 6"""
+        """Roll a number from the maximum {default:5} to the minimum {default:0}"""
 
         if _max < _min:
             _max, _min = _min, _max
@@ -206,6 +203,7 @@ class Fun(SquidPlugin):
 
     @command(name="coinflip", aliases=["cf"])
     def coinflip(self, ctx, choice: str = "heads"):
+        """Flip a coin"""
         c = random.choice(["heads", "tails"])
 
         if c == choice.lower():
@@ -244,7 +242,7 @@ class Fun(SquidPlugin):
 
     @command(name="percent")
     def cool(self, ctx, thing: str = "you", adjective: str = "cool"):
-        """Give a percentage about something like you!\nEnter in a <thing> to take the percentage on and an adjective like cool and watch our powerful machines do the rest"""
+        """Give a percentage about something like you!"""
         thing = thing[:200]
         percent = random.randint(0, 100)
 

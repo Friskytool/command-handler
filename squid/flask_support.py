@@ -11,9 +11,11 @@ def flask_compat(f):
     def wrapper(*args, **kwargs):
         response = f(*args, **kwargs)
 
-        if not isinstance(response, InteractionResponse):
+        if not isinstance(response, InteractionResponse) or not hasattr(
+            response, "to_dict"
+        ):
             raise TypeError(
-                "Response must be an InteractionResponse object but recieved {}: ({})".format(
+                "Response must be an InteractionResponse or contain a to_dict() method object but recieved {}: ({})".format(
                     type(response), response.__repr__()
                 )
             )

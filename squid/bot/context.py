@@ -1,17 +1,15 @@
-from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional
-
+from typing import TYPE_CHECKING, Callable, Optional, Type
+from discord import Role, User, utils
 from sentry_sdk.api import capture_exception, push_scope
-
 from squid.bot.errors import SquidError
+from squid.models.abc import Messageable
 from squid.models.enums import ApplicationCommandOptionType
-from squid.models.functions import Lazy
 from squid.models.interaction import (
     ApplicationCommand,
     ApplicationCommandOption,
     InteractionResponse,
 )
-from squid.models.member import Member, User
+from squid.models.member import Member
 from squid.models.views import ButtonData
 from ..models import Interaction
 
@@ -19,12 +17,14 @@ if TYPE_CHECKING:
     from squid.bot import SquidBot
     from squid.http import HttpClient
     from squid.bot.command import SquidCommand
+    from squid.bot.plugin import PluginMeta
 
 
-class SquidContext(object):
+class SquidContext(Messageable, object):
     def __init__(self, bot, interaction: Interaction):
         self.interaction: Interaction = interaction
         self.bot: "SquidBot" = bot
+        self._state = bot.state
         self.http: "HttpClient" = bot.http
 
         self.interaction_id: int = interaction.id
@@ -32,26 +32,44 @@ class SquidContext(object):
         self.interaction_type = interaction.type
         self.interaction_data = interaction.data
 
-        self.guild_id: str = str(interaction.guild_id)  # casting for rust compat
+        self.guild_id: str = int(interaction.guild_id)  # casting for rust compat
         self.channel_id = interaction.channel_id
 
-        self._user = {"user": interaction.user, "member": interaction.member}
+        self._user = {"user": interaction.user, **interaction.member}
 
         self._token: str = interaction.token
         self._message: str = interaction.message
         self.respond: Callable[...] = InteractionResponse.channel_message
 
     @property
+    def plugin(self) -> "Optional[Type[PluginMeta]]":
+        raise NotImplementedError
+
+    @property
     def token(self) -> str:
         return self._token
 
-    @property
-    def author(self) -> Dict[str, Any]:
-        """Discord will either pass in a user or member object this will return a mix"""
+    @utils.cached_property
+    def guild(self):
+        if self.guild_id:
+            return self.bot.state._get_guild(self.guild_id)
+        return None
 
-        if self._user["member"]:
-            return self._user["member"]
-        return self._user["user"]
+    @utils.cached_property
+    def author(self):
+        if self.guild:
+            return Member(state=self.bot.state, guild=self.guild, data=self._user)
+        return User(state=self.bot.state, data=self._user)
+
+    @utils.cached_property
+    def channel(self):
+        return self.bot.state._get_guild_channel(self.channel_id)
+
+    # @property
+    # def author(self) -> Member:
+    #     """Discord will either pass in a user or member object this will return a mix"""
+
+    #     return self.author
 
     def _resolve_id(self, typ: str):
         """Given an id we need to pull the data from resolved if present
@@ -72,11 +90,12 @@ class SquidContext(object):
                 member = resolved.get("members", {}).get(_id, None)
                 user = resolved.get("users", {}).get(_id, None)
                 if member and user:
-                    return Member.from_json({**member, "user": user})
+                    return Member(state=self.bot.state, data={**member, "user": user})
                 if member:
-                    return Member.from_json(member)
-                return User.from_json(user)
-
+                    return Member(state=self.bot.state, data=member)
+                return User(state=self.bot.state, data=user)
+            elif typ == "channel":
+                return resolved.get("channels", {}).get(_id, None)
             else:
                 # TODO: Finish up the rest of the types
                 for v in resolved.values():  # this is a bit of a hack
@@ -86,38 +105,86 @@ class SquidContext(object):
 
         return resolver
 
-    def send(self, *a, **k):
-        k.setdefault("content", None)
-        return self.http.send_message(channel_id=self.channel_id, *a, **k)
+    # Settings
+
+    @property
+    def settings(self) -> dict:
+        with self.bot.settings as s:
+            return s.settings.get(self.plugin.db_name, {})
+
+    def get_setting(self, name: str):
+        return self.settings.get(name)
+
+    def setting(self, name: str, **kw):
+        """Gets and parses tagscript in the setting if kwargs is provided
+
+        Args:
+            name (str): The name of the setting
+        """
+        with self.bot.settings as s:
+            return s.get(self, name, **kw)
 
 
 class CommandContext(SquidContext):
-    def __init__(self, bot, interaction: Interaction):
+    def __init__(self, bot, command: ApplicationCommand, interaction: Interaction):
         super().__init__(bot, interaction)
-        self.command: "SquidCommand" = self._get_command(bot, interaction.data)
+        self.command_data: ApplicationCommand = command
+        self.command: "SquidCommand" = bot._get_command(interaction, command)
 
-    def _get_command(self, bot: "SquidBot", cmd: "ApplicationCommand"):
-        """Get the actual name of the command including subcommands
+    @property
+    def plugin(self):
+        if self.command:
+            return self.command.cog
+        else:
+            return None
+
+    def _resolve_id(self, typ: str):
+        """Given an id we need to pull the data from resolved if present
 
         Args:
-            interaction (Interaction): The interaction for the command name
+            _id (str): The id to resolve
+
+        Returns:
+            str: The resolved id
         """
 
-        names = [cmd.name]
-        s = cmd.options
-        for option in s:
-            if option.type == ApplicationCommandOptionType.SUB_COMMAND:
-                names.append(option.name)
-                s.extend(option.options)
+        def resolver(_id: str):
+            resolved = self.command_data.resolved
+            print(typ)
+            if (
+                typ == "user"
+            ):  # special case handling where we can pull data from users & members
+                member = resolved.get("members", {}).get(_id, None)
+                user = resolved.get("users", {}).get(_id, None)
+                if member and user:
+                    guild = self.bot.state._get_guild(self.guild_id)
+                    return Member(
+                        state=self.bot.state, guild=guild, data={**member, "user": user}
+                    )
+                if member:
+                    return Member(state=self.bot.state, data=member)
 
-        parent = bot
-        name = ""
-        for i in range(len(names)):
-            name = " ".join(names[: i + 1])
-            parent = parent.get_command(name)
-            if not parent:
-                return None
-        return parent
+                if not user and (user_obj := self._state.get_user(_id)):
+                    return user_obj
+                return User(state=self.bot.state, data=user)
+            elif typ == "channel":
+                return self.bot.state._get_guild_channel(str(_id))
+            elif typ == "role":
+                if data := resolved.get("roles", {}).get(_id):
+                    return Role(
+                        state=self.bot.state,
+                        guild=self.bot.state._get_guild(self.guild_id),
+                        data=data,
+                    )
+                return self.bot.state._get_role(str(_id))
+            else:
+                # TODO: Finish up the rest of the types
+                for v in resolved.values():  # this is a bit of a hack
+                    if data := v.get(_id):
+                        return data
+            return _id
+
+        return resolver
 
     def _resolve(self, i: ApplicationCommandOption):
 
@@ -132,19 +199,19 @@ class CommandContext(SquidContext):
         NUMBER	= 10 #      Any double between -2^53 and 2^53
         """
         cast = {
-            ApplicationCommandOptionType.STRING: str,
-            ApplicationCommandOptionType.INTEGER: int,
-            ApplicationCommandOptionType.BOOLEAN: bool,
-            ApplicationCommandOptionType.USER: self._resolve_id("user"),
-            ApplicationCommandOptionType.CHANNEL: self._resolve_id("channel"),
-            ApplicationCommandOptionType.ROLE: self._resolve_id("roles"),
-            ApplicationCommandOptionType.MENTIONABLE: self._resolve_id(
+            ApplicationCommandOptionType.string: str,
+            ApplicationCommandOptionType.integer: int,
+            ApplicationCommandOptionType.boolean: bool,
+            ApplicationCommandOptionType.user: self._resolve_id("user"),
+            ApplicationCommandOptionType.channel: self._resolve_id("channel"),
+            ApplicationCommandOptionType.role: self._resolve_id("role"),
+            ApplicationCommandOptionType.mentionable: self._resolve_id(
                 "user"
             ),  # TODO: resolve to proper types
-            ApplicationCommandOptionType.NUMBER: float,
+            ApplicationCommandOptionType.number: float,
         }
 
-        if i.type in cast:
+        if i.type in cast and i.value:
             return cast[i.type](i.value)
         return i.value
 
@@ -155,8 +222,9 @@ class CommandContext(SquidContext):
             i.name: self._resolve(i)
             for i in [
                 x
-                for x in self.interaction.data.options
-                if x.type != ApplicationCommandOptionType.SUB_COMMAND
+                for x in self.command_data.options
+                if x.type != ApplicationCommandOptionType.sub_command
+                and x.value is not None
             ]
         }
 
@@ -190,33 +258,21 @@ class CommandContext(SquidContext):
                     return self.bot.on_error(self, e)
                 raise SquidError(e)
 
-    # Settings
-
-    @property
-    def settings(self) -> dict:
-        with self.bot.settings as s:
-            return s.settings.get(self.command.cog.db_name, {})
-
-    def get_setting(self, name: str):
-        return self.settings.get(name)
-
-    def setting(self, name: str, **kw):
-        """Gets and parses tagscript in the setting if kwargs is provided
-
-        Args:
-            name (str): The name of the setting
-        """
-        with self.bot.settings as s:
-            return s.get(self, name, **kw)
-
 
 class ComponentContext(SquidContext):
-    def __init__(self, bot, interaction):
+    def __init__(self, bot, component, interaction):
         super().__init__(bot, interaction)
-        self.value = interaction.data.custom_id
+        self.value = component.custom_id
         self.data: ButtonData = ButtonData.get(self.value)
 
         self.handler = bot.get_handler(self.data.typ)
+
+    @property
+    def plugin(self):
+        if self.handler:
+            return self.handler.cog
+        else:
+            return None
 
     def kwargs(self) -> dict:
         return self.data.data

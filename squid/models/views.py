@@ -36,9 +36,11 @@ class ButtonData:
 class View(_View):
     KEY: str
 
-    def __init__(self):
+    def __init__(self, cog=None):
         self.children = []
         self._View__weights = _ViewWeights([])
+
+        self.cog = cog
 
     def to_components(self) -> List[Dict[str, Any]]:
         def key(item: Item) -> int:

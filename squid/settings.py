@@ -59,11 +59,13 @@ class Settings(object):
     def guild_settings(self, ctx: "CommandContext") -> dict:
         # if not (data := self.cache.get(ctx.guild_id)):
         with ctx.bot.db as db:
-            data = db.settings.find_one({"guild_id": str(ctx.guild_id)})
+            data = db.settings.find_one({"guild_id": str(ctx.guild_id)}) or {}
         self.cache[ctx.guild_id] = data
         r = {}
-        for v, k in self.settings.get(ctx.command.cog.db_name, {}).items():
-            r[v] = data.get(ctx.command.cog.db_name, {}).get(v, k.default)
+
+        for v, k in self.settings.get(ctx.plugin.db_name, {}).items():
+
+            r[v] = data.get(ctx.plugin.db_name, {}).get(v, k.default)
         return r
 
     def get(self, ctx: "CommandContext", name: str, **kw) -> str:

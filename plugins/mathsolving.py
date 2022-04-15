@@ -9,14 +9,14 @@ class MathSolving(SquidPlugin):
 
     @command()
     def math(self, ctx, expression: str):
-
+        """Evaluate a math expression"""
         result = expr.evaluate(expression, max_safe_number=9e99)
 
         return ctx.respond(
             embed=Embed(
                 description=f"```js\n= {result:,}\n```",
                 color=self.bot.colors["primary"],
-            ).set_author(name=expression, icon_url=ctx.author.avatar_url)
+            ).set_author(name=expression, icon_url=ctx.author.avatar.url)
         )
 
 

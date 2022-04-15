@@ -1,13 +1,12 @@
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 from discord import AllowedMentions, Embed
 from .enums import (
-    InteractionResponseType,
-    InteractionType,
     ApplicationCommandType,
     ApplicationCommandOptionType,
 )
-from .member import Member, User
+from .member import Member
 import json
+from discord import InteractionType, InteractionResponseType
 
 __all__ = (
     "Interaction",
@@ -18,140 +17,91 @@ __all__ = (
 
 
 class Interaction(object):
+    def __init__(self, *, data: str, state):
+        self._state = state
+        self._from_data(data)
 
-    CONSTRUCTORS = {
-        InteractionType.PING: "default_constructor",
-        InteractionType.APPLICATION_COMMAND: "application_command_constructor",
-        InteractionType.MESSAGE_COMPONENT: "message_component_constructor",
-        InteractionType.APPLICATION_COMMAND_AUTOCOMPLETE: "application_command_autocomplete_constructor",
-    }
-
-    def __init__(
-        self,
-        *,
-        id: str,
-        application_id: int,
-        type: InteractionType,
-        data: dict,
-        guild_id: int,
-        channel_id: int,
-        member: Optional[Member],
-        user: User,
-        token: str,
-        version: str,
-        message: Optional[str],
-    ):
-        self.id = id
-        self.application_id = application_id
-        self.type = type
-        self.data = data
-        self.guild_id = guild_id
-        self.channel_id = channel_id
-        self.member = member
-        self.user = user
-        self.token = token
-        self.version = version
-        self.message = message
+    def _from_data(self, data: dict):
+        self.id = data["id"]
+        self.application_id = data.get("application_id")
+        self.type = InteractionType(data["type"])
+        self.data = data.get("data")
+        self.guild_id = data.get("guild_id")
+        self.channel_id = data.get("channel_id")
+        self.token = data.get("token")
+        self.user = data.get("user")
+        self.version = data.get("version")
+        self.member = data.get("member")
+        self.message = data.get("message")
 
     def __repr__(self):
-        return f"<Interaction id={self.id} application_id={self.application_id} type={self.type} data={self.data} guild_id={self.guild_id} channel_id={self.channel_id} member={self.member} user={self.user} token={self.token} version={self.version} message={self.message}>"
-
-    @classmethod
-    def from_json(cls, data):
-        typ = InteractionType(data["type"])
-
-        return getattr(
-            cls,
-            cls.CONSTRUCTORS.get(typ, "default_constructor"),
-        )(data)
-
-    @staticmethod
-    def _default_constructor(data):
-        return dict(
-            id=data["id"],
-            application_id=data["application_id"],
-            type=InteractionType(data["type"]),
-            data=data.get("data", {}),
-            guild_id=data.get("guild_id", 0),
-            channel_id=data.get("channel_id", 0),
-            member=(Member.from_json(data["member"]) if data.get("member") else None),
-            user=(User.from_json(data["user"]) if data.get("user") else None),
-            token=data["token"],
-            version=data["version"],
-            message=data.get("message"),
-        )
-
-    @classmethod
-    def default_constructor(cls, data):
-        return cls(**cls._default_constructor(data))
-
-    @classmethod
-    def application_command_constructor(cls, data):
-        default = cls._default_constructor(data)
-        default.pop("data")
-        return cls(data=ApplicationCommand.from_json(data["data"]), **default)
-
-    @classmethod
-    def message_component_constructor(cls, data):
-        default = cls._default_constructor(data)
-        default.pop("data")
-        return cls(data=MessageComponent.from_json(data["data"]), **default)
+        return f"<Interaction id={self.id!r} type={self.type!r}>"
 
 
 class MessageComponent(object):
-    def __init__(self, *, component_type: int, custom_id: str):
-        self.component_type = component_type
-        self.custom_id = custom_id
+    def __init__(self, *, data: dict, state):
+        self._state = state
+        self._from_data(data)
 
-    @classmethod
-    def from_json(cls, data):
-        return cls(
-            component_type=data["component_type"],
-            custom_id=data["custom_id"],
-        )
+    def _from_data(self, data: dict):
+        self.component_type = data["component_type"]
+        self.custom_id = data["custom_id"]
 
     def __repr__(self):
-        return f"<MessageComponent component_type={self.component_type} custom_id={self.custom_id}>"
+        return f"<MessageComponent component_type={self.component_type!r} custom_id={self.custom_id!r}>"
 
 
 class ApplicationCommand(object):
-    def __init__(self, *, id, name, type, resolved=None, options=[]):
-        self.id = id
-        self.name = name
-        self.type = ApplicationCommandType(type)
-        self.resolved = resolved
+    def __init__(self, *, data: dict, state):
+        self._state = state
+        self._from_data(data)
+
+    def _from_data(self, data):
+        self.guild_id = data.get("guild_id", None)
+        self.id = data["id"]
+        self.name = data["name"]
+        self.type = ApplicationCommandType(data["type"])
+        self.resolved = data.get("resolved", None)
         self.options = [
-            ApplicationCommandOption.from_json(option) for option in options
+            ApplicationCommandOption(state=self._state, data=option)
+            for option in data.get("options", [])
         ]
 
     def __repr__(self):
-        return f"<ApplicationCommand id={self.id} name={self.name} type={self.type} resolved={self.resolved} options={self.options}>"
+        return f"<ApplicationCommand id={self.id!r} name={self.name!r} type={self.type!r} resolved={self.resolved!r} options={self.options!r}>"
 
-    @classmethod
-    def from_json(cls, data):
-        return cls(**data)
+    @property
+    def guild(self):
+        return self._state._get_guild(self.guild_id)
 
 
 class ApplicationCommandOption(object):
-    def __init__(self, *, name, type, value, options, focused):
-        self.name = name
-        self.type = type
-        self.value = value
-        self.options = options
-        self.focused = focused
+    def __init__(self, *, data: dict, state):
+        self._state = state
+        self._from_data(data)
+
+    def _from_data(self, data):
+        self.name = data["name"]
+        self.description = data.get("description", None)
+        self.required = data.get("required", False)
+        self.type = ApplicationCommandOptionType(data["type"])
+        self.value = data.get("value")
+        self.options = [
+            ApplicationCommandOption(state=self._state, data=option)
+            for option in data.get("options", [])
+        ]
 
     def __repr__(self):
-        return f"<ApplicationCommandOption name={self.name} type={self.type} value={self.value} options={self.options} focused={self.focused}>"
+        return f"<ApplicationCommandOption name={self.name} type={self.type} value={self.value} options={self.options}>"
 
-    @classmethod
-    def from_json(cls, data):
-        return cls(
-            name=data["name"],
-            type=ApplicationCommandOptionType(data["type"]),
-            value=data.get("value"),
-            options=list(map(cls.from_json, data.get("options", []))),
-            focused=data.get("focused", False),
-        )
+    def serialize(self) -> dict:
+        return {
+            "name": self.name,
+            "description": self.description,
+            "required": self.required,
+            "type": self.type.value,
+            "options": [option.serialize() for option in self.options],
+        }
 
 
 class ApplicationCommandOptionChoice(object):
@@ -169,19 +119,6 @@ class ApplicationCommandOptionChoice(object):
 
 class Component(object):
     ...
-
-
-"""
-
-class InteractionResponseType(Enum):
-    PONG = 1
-    CHANNEL_MESSAGE_WITH_SOURCE = 4
-    DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE = 5
-    DEFERRED_UPDATE_MESSAGE = 6
-    UPDATE_MESSAGE = 7
-    APPLICATION_COMMAND_AUTOCOMPLETE_RESULT = 8
-
-"""
 
 
 class InteractionResponse(object):
@@ -215,6 +152,10 @@ class InteractionResponse(object):
         self.choices = choices
 
     @classmethod
+    def pong(cls):
+        return cls(InteractionResponseType.pong)
+
+    @classmethod
     def channel_message(
         cls,
         tts: bool = False,
@@ -230,7 +171,7 @@ class InteractionResponse(object):
         if components is None:
             components = []
         return cls(
-            InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+            InteractionResponseType.channel_message,
             tts=tts,
             content=content,
             embed=embed,
@@ -241,7 +182,7 @@ class InteractionResponse(object):
         )
 
     @classmethod
-    def deferred_channel_message_from_source(
+    def deferred_channel_message(
         cls,
         tts: bool = False,
         content: str = None,
@@ -256,7 +197,7 @@ class InteractionResponse(object):
         if components is None:
             components = []
         return cls(
-            InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
+            InteractionResponseType.deferred_channel_message,
             tts=tts,
             content=content,
             embed=embed,
@@ -267,7 +208,7 @@ class InteractionResponse(object):
         )
 
     @classmethod
-    def deferred_update_message(
+    def defferred_message_update(
         cls,
         tts: bool = False,
         content: str = None,
@@ -282,7 +223,7 @@ class InteractionResponse(object):
         if components is None:
             components = []
         return cls(
-            InteractionResponseType.DEFERRED_UPDATE_MESSAGE,
+            InteractionResponseType.deferred_message_update,
             tts=tts,
             content=content,
             embed=embed,
@@ -293,7 +234,7 @@ class InteractionResponse(object):
         )
 
     @classmethod
-    def update_message(
+    def message_update(
         cls,
         tts: bool = False,
         content: str = None,
@@ -308,7 +249,7 @@ class InteractionResponse(object):
         if components is None:
             components = []
         return cls(
-            InteractionResponseType.UPDATE_MESSAGE,
+            InteractionResponseType.message_update,
             tts=tts,
             content=content,
             embed=embed,
@@ -316,22 +257,15 @@ class InteractionResponse(object):
             allowed_mentions=allowed_mentions,
             ephemeral=ephemeral,
             components=components,
-        )
-
-    @classmethod
-    def application_command_autocomplete_result(
-        cls,
-        *,
-        choices: List,
-    ):
-        return cls(
-            InteractionResponseType.APPLICATION_COMMAND_AUTOCOMPLETE_RESULT,
-            choices=choices,
         )
 
     def default(self, o):
         if isinstance(o, InteractionResponseType):
             return None
+
+        if isinstance(o, AllowedMentions):
+            return o.to_dict()
+        print(o)
         return o.__dict__
 
     def to_dict(self):

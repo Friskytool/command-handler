@@ -6,7 +6,7 @@ from .utility import Utility, setup as utility_setup
 from .timers import Timers, setup as timers_setup
 from .dankmemer import DankMemer, setup as dankmemer_setup
 from .giveaways import Giveaways, setup as giveaways_setup
-
+from .tags import Tags, setup as tags_setup
 
 def setup(bot):
     utility_setup(bot)
@@ -17,3 +17,4 @@ def setup(bot):
     timers_setup(bot)
     dankmemer_setup(bot)
     giveaways_setup(bot)
+    tags_setup(bot)

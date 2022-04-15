@@ -24,15 +24,18 @@ class MessageCounting(SquidPlugin):
                 {"user_id": user.id, "guild_id": str(ctx.guild_id)}
             )
             if not data:
-                raise CommandFailed(
-                    f'"{user.safe_name}" doesn\'t have any messages yet!'
-                )
+                if user.id == ctx.author.id:
+                    raise CommandFailed("You have no tracked messages yet!")
+                else:
+                    raise CommandFailed(
+                        f'"{user.name}" doesn\'t have any messages yet!'
+                    )
 
             messages = data.get("count", 0)
 
             return ctx.respond(
                 embed=Embed(
-                    description=f"*{user.safe_name}* has `{messages:,}` messages",
+                    description=f"*{user.name}* has `{messages:,}` messages",
                     color=self.bot.colors["primary"],
                 )
             )

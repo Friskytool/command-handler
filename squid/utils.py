@@ -2,10 +2,26 @@ import re
 import sys
 from datetime import datetime, timedelta
 import time
-from typing import Any, Dict, ForwardRef, Iterable, Literal, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, ForwardRef, Iterable, Literal, Tuple, Union
 import datetime
 
+if TYPE_CHECKING:
+    from squid.bot.context import CommandContext
+
+from squid.bot.errors import CheckFailure
+
 PY_310 = sys.version_info >= (3, 10)
+
+
+def has_role(ctx: "CommandContext"):
+    roles = ctx.setting("roles")
+    print("roles:", roles)
+    if roles and not any(r["id"] in ctx.author.roles for r in roles):
+        raise CheckFailure(
+            "Missing Roles\n" + "\n".join([f"- {i['name']}" for i in roles]),
+            fmt="diff",
+        )
+    return True
 
 
 def format_list(l: list):
@@ -154,7 +170,7 @@ def evaluate_annotation(
 
 
 regex = re.compile(
-    r"^((?P<days>[\.\d]+?)d)?((?P<hours>[\.\d]+?)h)?((?P<minutes>[\.\d]+?)m)?((?P<seconds>[\.\d]+?)s)?$"
+    r"^((?P<weeks>[\.\d]+?)w)?((?P<days>[\.\d]+?)d)?((?P<hours>[\.\d]+?)h)?((?P<minutes>[\.\d]+?)m)?((?P<seconds>[\.\d]+?)s)?$"
 )
 
 
@@ -167,6 +183,9 @@ def parse_time(time_str):
     :param time_str: A string identifying a duration.  (eg. 2h13m)
     :return datetime.timedelta: A datetime.timedelta object
     """
+    if time_str.isdigit():
+        time_str += "s"
+        
     parts = regex.match(time_str)
     assert (
         parts is not None
@@ -176,4 +195,5 @@ def parse_time(time_str):
     time_params = {
         name: float(param) for name, param in parts.groupdict().items() if param
     }
+
     return timedelta(**time_params)

@@ -12,15 +12,20 @@ class CommandFailed(SquidError):
     Command processing failed through incorrect user input
     """
 
-    def __init__(self, *args: List[str], fmt="cs"):
+    def __init__(self, *args: List[str], fmt="cs", **opts):
         super().__init__(*args)
-        self.fmt = fmt
-        self.message = (
-            (f"```{fmt}\n" if fmt else "```\n")
-            + ("[ERROR]\n" if fmt == "cs" else "")
-            + "\n".join(args)
-            + "\n```"
-        )
+
+        if opts.get("raw", False):
+            self.message = "\n".join(args)
+        else:
+            self.fmt = fmt
+            self.message = (
+                (f"```{fmt}\n" if fmt else "```\n")
+                + ("[ERROR] " if fmt == "cs" else "")
+                + "\n".join(args).replace("'", "′").replace("`", "′")
+                + "\n```"
+            )
+        self.title = opts.get("title", "Command Error")
         print(self.message)
 
     def __str__(self):
@@ -52,3 +57,6 @@ class CheckFailure(CommandFailed):
     def __init__(self, *a, **kw):
         kw.setdefault("fmt", "diff")
         super().__init__(*a, **kw)
+
+class RequireCheckFailure(CheckFailure):
+    ...

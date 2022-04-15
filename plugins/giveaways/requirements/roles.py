@@ -2,6 +2,8 @@ from squid.bot.context import CommandContext
 from squid.errors import ArgumentParsingError
 from squid.utils import format_list, s
 from ..requirement import Requirement, RequirementPriority, RequirementResponse
+from discord import utils
+from fuzzywuzzy import process
 
 
 class Role(Requirement):
@@ -19,16 +21,40 @@ class Role(Requirement):
 
     def convert(self, ctx: CommandContext, argument):
         roles = []
+        print(ctx.guild.roles)
         for role_str in argument.split(","):
             role_str = role_str.strip()
-            if not role_str.isdigit() or len(role_str) > 20 or len(role_str) < 16:
-                raise ArgumentParsingError("Invalid role ID ({})".format(role_str))
-            roles.append(role_str)
+            if role_str.startswith("<@&"):
+                role_str = role_str[3:-1]
+            if role_str.isdigit() and (role := ctx.guild.get_role(int(role_str))):
+                roles.append(role.id)
+            else:
+                result = utils.find(
+                    lambda x: x.name.lower() == role_str.lower(), ctx.guild.roles
+                )
+                if result is not None:
+                    roles.append(result.id)
+                    continue
+                try:
+                    name, ra = process.extractOne(
+                        role_str, [x.name for x in ctx.guild.roles]
+                    )
+                except BaseException:
+                    pass
+                else:
+                    if ra >= 60:  # loop?
+                        result = utils.get(ctx.guild.roles, name=name)
+                        roles.append(result.id)
+                        continue
+                raise ArgumentParsingError(
+                    "Role `{}` not found!".format(role_str),
+                )
         return roles  # todo: latr
 
     def __call__(self, ctx: CommandContext, data: list):
+        print(ctx.author.roles)
         for rle in data:  # all roles stored
-            if rle not in ctx.author.roles:
+            if rle not in [i.id for i in ctx.author.roles]:
                 return RequirementResponse(
                     False,
                     msg=f"You don't have the <@&{rle}> role which is required for this giveaway",
@@ -45,7 +71,7 @@ class Bypass(Role):
 
     def __call__(self, ctx: CommandContext, data: list):
         for rle in data:  # all roles stored
-            if rle in ctx.author.roles:
+            if rle in [i.id for i in ctx.author.roles]:
                 return RequirementResponse(
                     True,
                 )
@@ -60,7 +86,7 @@ class Blacklist(Bypass):
 
     def __call__(self, ctx: CommandContext, data: list):
         for rle in data:
-            if rle in ctx.author.roles:
+            if rle in [i.id for i in ctx.author.roles]:
                 return RequirementResponse(
                     False,
                     msg=f"You contain the <@&{rle}> role which is blacklisted for this giveaway",

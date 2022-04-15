@@ -1,4 +1,6 @@
+from ast import Str
 import json
+import re
 import uuid
 from datetime import timedelta
 from discord import ButtonStyle, Color, Embed
@@ -9,26 +11,15 @@ from squid.bot.errors import CommandFailed
 from squid.models.interaction import InteractionResponse
 from squid.models.views import ButtonData, View
 from squid.utils import discord_timestamp, now, parse_time
-from squid.bot.errors import CheckFailure
+from squid.bot.checks import has_role
 from discord.ext import commands
-
-
-def has_role(ctx):
-    roles = ctx.setting("roles")
-    print("roles:", roles)
-    if roles and not any(r["id"] in ctx.author.roles for r in roles):
-        raise CheckFailure(
-            "Missing Roles\n" + "\n".join([f"- {i['name']}" for i in roles]),
-            fmt="diff",
-        )
-    return True
 
 
 class ReminderView(View):
     KEY = "timer-store"
 
-    def __init__(self, *a, key: str, **k):
-        super().__init__()
+    def __init__(self, *a, key: str = "", cog=None, **k):
+        super().__init__(cog=cog)
         key = ButtonData(self.KEY, key=key)
         self.add_item(Button(*a, custom_id=key.store(), **k))
 
@@ -52,13 +43,17 @@ class ReminderView(View):
 class Timers(SquidPlugin):
     def __init__(self, bot):
         self.bot = bot
+        self.link_re = re.compile(
+            r"https:\/\/discord.com\/channels\/(\d*)\/(\d*)\/(\d*)"
+        )
 
     @command(name="timer")
     def timer(self, ctx: CommandContext):
+        """Create, Edit, and Delete Timers"""
         ...
 
     @timer.subcommand(name="start")
-    # @commands.check(has_role)
+    @commands.check(has_role)
     def start(
         self, ctx: CommandContext, *, time: str, title: str = "Timer"
     ) -> InteractionResponse:
@@ -66,7 +61,7 @@ class Timers(SquidPlugin):
         Set a timer for a given time
         """
 
-        if len(time) <= 1:
+        if len(time) < 1:
             raise CommandFailed("Invalid time format")
 
         delta = parse_time(time)
@@ -80,27 +75,36 @@ class Timers(SquidPlugin):
 
         stamp = int((now() + delta).timestamp())
 
-        components = None
-
+        tkwargs = dict(
+            time=f"<t:{stamp}:R>",
+            stamp=stamp,
+            title=title,
+            author=ctx.author.mention,
+            channel=ctx.channel.mention,
+        )
         message = ctx.send(
             embed=Embed(
-                description=ctx.setting("description", time=f"<t:{stamp}:R>"),
+                description=ctx.setting("description", **tkwargs),
                 timestamp=now() + delta,
             )
-            .set_author(name=title, icon_url=ctx.author.avatar_url)
-            .set_footer(text="Ends at ")
-            .to_dict(),
-            components=ReminderView(
+            .set_author(name=title, icon_url=ctx.author.avatar.url)
+            .set_footer(text="Ends at "),
+            view=ReminderView(
                 key="timers:{}".format(store_key),
                 style=ButtonStyle.primary,
                 label="Remind Me",
-            ).to_components(),
+            ),
         )
+        print(message)
+        message[
+            "link"
+        ] = f"https://discord.com/channels/{ctx.guild_id}{ctx.channel_id}/{message['id']}"
 
+        print(ctx.setting("end_message"))
         with ctx.bot.db as db:
             db.timers.insert_one(
                 {
-                    "host_id": ctx.author.id,
+                    "host_id": str(ctx.author.id),
                     "message_id": str(message["id"]),
                     "channel_id": str(ctx.channel_id),
                     "guild_id": str(ctx.guild_id),
@@ -109,7 +113,8 @@ class Timers(SquidPlugin):
                     "start": now(),
                     "active": True,
                     "title": title,
-                    "icon_url": ctx.author.avatar_url,
+                    "icon_url": ctx.author.avatar.url,
+                    "end_message": ctx.setting("end_message"),
                 }
             )
         return ctx.respond(
@@ -121,7 +126,7 @@ class Timers(SquidPlugin):
         )
 
     @timer.subcommand(name="list")
-    def timers(self, ctx, user=None, channel=None) -> Embed:
+    def list(self, ctx, user=None, channel=None) -> Embed:
         """
         Get a list of timers
         """
@@ -151,14 +156,22 @@ class Timers(SquidPlugin):
             )
 
             if not data:
-                raise CommandFailed(
-                    f"{'You' if user.id == ctx.author.id else 'They'} don't have any timers"
-                )
+                raise CommandFailed(f"I cannot find any timers matching those filters")
 
             print(json.dumps(list(data), indent=3, default=str))
             description = ""
+            if channel:
+                description += f"In **<#{channel.id}>**"
+                if user:
+                    description += f" by **{user.mention}**"
+            elif user:
+                description += f"By **{user.mention}**"
+
+            description += "\n\n"
             for i in data:
-                description += f"**<#{i['channel_id']}>**\n"
+                if channel is None:
+                    description += f"**<#{i['channel_id']}>**\n"
+
                 for j in i["timers"]:
                     description += f"[{j['title']}](https://discord.com/channels/{ctx.guild_id}/{i['channel_id']}/{j['message_id']}) - <t:{int(discord_timestamp(j['end']).timestamp())}:R>\n"
                 description += "\n"
@@ -171,7 +184,49 @@ class Timers(SquidPlugin):
 
             return ctx.respond(embed=embed)
 
+    @timer.subcommand(name="end")
+    @commands.check(has_role)
+    def end(self, ctx: CommandContext, *, link: str) -> InteractionResponse:
+        """
+        Stop a timer
+        """
+        match = self.link_re.match(link)
+        if not match:
+            raise CommandFailed("Invalid link")
+
+        _, channel_id, message_id = match.groups()
+
+        with ctx.bot.db as db:
+            x = db.timers.find_one_and_update(
+                {
+                    "guild_id": str(ctx.guild_id),
+                    "channel_id": str(channel_id),
+                    "message_id": str(message_id),
+                },
+                {"$set": {"end": now()}},
+            )
+
+            if x and x["active"]:
+                return ctx.respond(
+                    embed=Embed(
+                        description=f"Stopped timer for `{x['title']}`",
+                        color=self.bot.colors["primary"],
+                    ),
+                    ephemeral=True,
+                )
+            elif x and x["active"]:
+                return ctx.respond(
+                    embed=Embed(
+                        description=f"Timer for `{x['title']}` already ended",
+                        color=self.bot.colors["secondary"],
+                    ),
+                    ephemeral=True,
+                )
+            else:
+                raise CommandFailed("I cannot find that timer")
+
 
 def setup(bot):
-    bot.add_plugin(Timers(bot))
-    bot.add_handler(ReminderView)
+    timers = Timers(bot)
+    bot.add_plugin(timers)
+    bot.add_handler(ReminderView(cog=timers))

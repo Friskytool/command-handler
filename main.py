@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from inspect import ismethod
 import logging
 import os
 
@@ -26,7 +27,7 @@ from sentry_sdk.integrations.gcp import GcpIntegration
 import TagScriptEngine as tse
 
 from squid.bot import SquidBot
-from squid.models.enums import InteractionType
+from squid.bot.errors import CommandFailed
 from squid.models.functions import lazy
 from squid.models.interaction import Interaction
 from squid.models.views import View
@@ -57,15 +58,14 @@ def setup_db():
     return db
 
 
-@lazy
-def setup_redis():
+def setup_redis() -> Redis:
     if url := os.getenv("REDIS_URL"):
         k = {}
         if password := os.getenv("REDIS_PASS"):
             k["password"] = password
-        redis: Redis = Redis.from_url(url, **k)
+        redis = Redis.from_url(url, decode_responses=True, **k)
     else:
-        redis: Redis = Redis()
+        redis = Redis()
     return redis
 
 
@@ -114,18 +114,21 @@ def setup_settings():
 
 @SquidBot.from_lazy()
 def lazy_bot(cls=SquidBot):
-    bot = cls(
+    bot: SquidBot = cls(
         public_key=os.getenv("PUBLIC_KEY"),
         token=os.getenv("DISCORD_TOKEN"),
         primary_color=0xEA81AE,
         secondary_color=0xEA81AE,
         error_color=0xCC1100,
+        redis=setup_redis(),
         squid_db=setup_db,
-        squid_redis=setup_redis,
         squid_engine=setup_engine,
         squid_settings=setup_settings,
         squid_sentry=bool(os.getenv("PRODUCTION")),
         squid_amari_auth=os.getenv("AMARI_AUTH"),
+        squid_owner_id=int(os.getenv("OWNER_ID", 0)),
+        squid_dashboard_url=os.getenv("dashboard_url", "https://dashboard.squid.pink"),
+        squid_application_id=int(os.getenv("APPLICATION_ID", 0)),
         squid_requirements={},
     )
     import plugins
@@ -135,8 +138,20 @@ def lazy_bot(cls=SquidBot):
     @bot.check
     def check_plugins(ctx):
         with ctx.bot.redis as redis:
-            # plugins = redis.smembers(f"plugins:{ctx.guild_id}")
-            return True
+            plugins = redis.smembers(f"plugins:{ctx.guild_id}")
+
+            if (
+                hasattr(ctx, "command")
+                and ctx.command.name != "dummy"
+                and ctx.command.cog.qualified_name.lower() not in plugins
+            ):
+                print(plugins)
+                raise CommandFailed(
+                    f"```diff\nMissing Plugin\n- {ctx.command.cog.qualified_name.title()}\n```\n You can enable plugins on the [dashboard]({ctx.bot.dashboard_url}/#/app/{ctx.guild_id}/) \n```",
+                    raw=True,
+                )
+
+        return True
 
     return bot
 
@@ -173,14 +188,6 @@ def squidbot(request):
     except BadSignatureError:
         return abort(401, "invalid request signature")
     else:
-        interaction = Interaction.from_json(request.json)
-
-        if interaction.type == InteractionType.PING:
-            return jsonify({"type": 1})
-
-        elif interaction.type in [
-            InteractionType.APPLICATION_COMMAND,
-            InteractionType.MESSAGE_COMPONENT,
-        ]:
-            with lazy_bot as bot:
-                return bot.process(interaction)
+        with lazy_bot as bot:
+            interaction = Interaction(state=bot.state, data=request.json)
+            return bot.process(interaction)
