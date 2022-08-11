@@ -95,7 +95,7 @@ class SquidCommand(_BaseCommand):
         self.name: str = name
 
         self.ignore_register = kwargs.get("ignore_register", False)
-        
+
         self.callback = func
         self.enabled: bool = kwargs.get("enabled", True)
 
@@ -136,7 +136,7 @@ class SquidCommand(_BaseCommand):
             checks = kwargs.get("checks", [])
 
         self.cog = kwargs.get("cog")
-        
+
         self.checks: List[Callable] = checks
         self._commands: Dict[str, Type[Self]] = {}
 

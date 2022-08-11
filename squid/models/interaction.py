@@ -125,6 +125,7 @@ class ApplicationCommandOption(object):
 
         return d
 
+
 class ApplicationCommandOptionChoice(object):
     def __init__(self, name: str, value: str):
         self.name = name

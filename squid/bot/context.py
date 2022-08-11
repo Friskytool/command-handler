@@ -48,7 +48,7 @@ class SquidContext(Messageable, object):
     @plugin.setter
     def plugin(self, cog):
         raise NotImplementedError
-    
+
     @property
     def token(self) -> str:
         return self._token
@@ -292,7 +292,6 @@ class ComponentContext(SquidContext):
     def plugin(self, cog):
         if self.handler:
             self.handler.cog = cog
-            
 
     def kwargs(self) -> dict:
         return self.data.data
