@@ -3,9 +3,12 @@ from ctypes import Union
 import inspect
 from tokenize import Double
 from typing import TYPE_CHECKING, List, Optional
+
+from discord import TextChannel, User
 from squid.models.enums import ApplicationCommandType
 from squid.models.enums import ApplicationCommandOptionType
 from squid.models.interaction import ApplicationCommandOption
+from squid.models.member import Member
 
 if TYPE_CHECKING:
     from squid.bot.command import SquidCommand
@@ -38,7 +41,10 @@ class CreateApplicationCommand(object):
             return ApplicationCommandOptionType.boolean
         elif typ == str:
             return ApplicationCommandOptionType.string
-
+        elif typ == Member or typ == User:
+            return ApplicationCommandOptionType.user
+        elif typ == TextChannel:
+            return ApplicationCommandOptionType.channel
         if name:
             try:
                 return getattr(ApplicationCommandOptionType, name.lower())
@@ -69,20 +75,27 @@ class CreateApplicationCommand(object):
             argspec.args.remove("ctx")
 
         for arg in argspec.args:
-            options.append(
-                ApplicationCommandOption(
-                    state=None,
-                    data=dict(
-                        name=arg,
-                        description="Enter the value for the argument",
-                        type=cls.get_annotated_type(
-                            argspec.annotations.get(arg, str), arg
-                        ),
-                        required=arg in argspec.args[: -len(argspec.defaults or [])],
-                        options=[],
-                    ),
-                )
+            option = ApplicationCommandOption(
+                state=None,
+                data=dict(
+                    name=arg,
+                    description="Enter the value for the argument",
+                    type=cls.get_annotated_type(argspec.annotations.get(arg, str), arg),
+                    required=arg
+                    in argspec.args[
+                        : (-len(argspec.defaults) if argspec.defaults else 100)
+                    ],
+                    options=[],
+                ),
             )
+            if option.type in [
+                ApplicationCommandOptionType.integer,
+                ApplicationCommandOptionType.number,
+            ]:
+                option.min_value = 1
+
+            options.append(option)
+
         return cls(
             name=cmd.name,
             description=cmd.help,

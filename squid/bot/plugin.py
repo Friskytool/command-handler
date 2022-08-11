@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List, Any, Type
+from typing import TYPE_CHECKING, List, Any, Type
 from squid import utils
 from .command import SquidCommand, _BaseCommand
 import inspect
@@ -50,6 +50,11 @@ class PluginMeta(type):
 
 
 class SquidPlugin(metaclass=PluginMeta):
+    if TYPE_CHECKING:
+        from .bot import SquidBot
+
+        bot: SquidBot
+
     def __new__(cls, *args: Any, **kwargs: Any):
         # For issue 426, we need to store a copy of the command objects
         # since we modify them to inject `self` to them.

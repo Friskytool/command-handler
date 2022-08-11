@@ -21,7 +21,6 @@ class Role(Requirement):
 
     def convert(self, ctx: CommandContext, argument):
         roles = []
-        print(ctx.guild.roles)
         for role_str in argument.split(","):
             role_str = role_str.strip()
             if role_str.startswith("<@&"):
@@ -52,7 +51,6 @@ class Role(Requirement):
         return roles  # todo: latr
 
     def __call__(self, ctx: CommandContext, data: list):
-        print(ctx.author.roles)
         for rle in data:  # all roles stored
             if rle not in [i.id for i in ctx.author.roles]:
                 return RequirementResponse(

@@ -13,17 +13,6 @@ from squid.bot.errors import CheckFailure
 PY_310 = sys.version_info >= (3, 10)
 
 
-def has_role(ctx: "CommandContext"):
-    roles = ctx.setting("roles")
-    print("roles:", roles)
-    if roles and not any(r["id"] in ctx.author.roles for r in roles):
-        raise CheckFailure(
-            "Missing Roles\n" + "\n".join([f"- {i['name']}" for i in roles]),
-            fmt="diff",
-        )
-    return True
-
-
 def format_list(l: list):
     if len(l) == 0:
         return ""
@@ -36,6 +25,8 @@ def format_list(l: list):
 
 
 def s(o):
+    if type(o) is str and o.isdigit():
+        o = int(o)
     return "" if o == 1 else "s"
 
 
@@ -185,7 +176,7 @@ def parse_time(time_str):
     """
     if time_str.isdigit():
         time_str += "s"
-        
+
     parts = regex.match(time_str)
     assert (
         parts is not None

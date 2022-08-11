@@ -94,6 +94,8 @@ class SquidCommand(_BaseCommand):
             raise TypeError("Name of a command must be a string.")
         self.name: str = name
 
+        self.ignore_register = kwargs.get("ignore_register", False)
+        
         self.callback = func
         self.enabled: bool = kwargs.get("enabled", True)
 
@@ -372,18 +374,18 @@ class SquidCommand(_BaseCommand):
         return self.name
 
     def get_command(self, name: str):
-        return self._commands.get(name)
+        return self._commands.get(name.lower())
 
     @property
     def commands(self):
         return self._commands.values()
 
     def add_command(self, command: Type[Self]):
-        self._commands[command.qualified_name] = command
+        self._commands[command.qualified_name.lower()] = command
         return command
 
     def remove_command(self, name: str):
-        return self._commands.pop(name, None)
+        return self._commands.pop(name.lower(), None)
 
     def subcommand(self, *, cls: Type[Self] = None, **attrs: Any):
         if cls is None:

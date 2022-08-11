@@ -1,4 +1,9 @@
 from typing import TYPE_CHECKING, Any, Dict
+import discord
+
+from grpc import Channel
+from squid.models.guild import Guild
+from squid.models.member import Member
 from squid.models.settings import Setting
 import TagScriptEngine as tse
 from inspect import isfunction
@@ -50,10 +55,17 @@ class Settings(object):
                 data[k] = tse.IntAdapter(v)
             elif isfunction(v):
                 data[k] = tse.FunctionAdapter(v)
+            elif isinstance(v, Member):
+                data[k] = tse.MemberAdapter(v)
+            elif isinstance(v, Channel):
+                data[k] = tse.ChannelAdapter(v)
+            elif isinstance(v, discord.Object):
+                data[k] = tse.AttributeAdapter(v)
             elif isinstance(v, object):
                 data[k] = tse.SafeObjectAdapter(v)
             else:
                 raise TypeError(f"Unsupported type {type(v)}")
+
         return data
 
     def guild_settings(self, ctx: "CommandContext") -> dict:
@@ -68,12 +80,46 @@ class Settings(object):
             r[v] = data.get(ctx.plugin.db_name, {}).get(v, k.default)
         return r
 
+    @staticmethod
+    def fmt_output(ctx, v: Any, data: dict) -> Any:
+        """Modifying output to suppoprt valid types
+
+        Args:
+            v (Any): The value to be modified
+            data (dict): The settings data for this setting
+
+        Returns:
+            Any: the discord object related to the setting
+        """
+
+        def fmt(v, typ):
+            if typ == "string":
+                return str(v)
+            elif typ == "int" or typ == "number":
+                return int(v)
+            elif typ == "boolean":
+                return bool(v)
+            elif typ == "role" or typ == "roles":
+                return ctx.guild.get_role(int(v["id"]))
+            elif typ == "channel" or typ == "channels":
+                return ctx.guild.get_channel(int(v["id"]))
+            else:
+                print(f"Unsupported type {typ}")
+                return str(v)
+
+        if type(v) is list:
+            return [fmt(i, data.typ) for i in v]
+        else:
+            return fmt(v, data.typ)
+
     def get(self, ctx: "CommandContext", name: str, **kw) -> str:
         settings_data = self.guild_settings(ctx)
         if name in settings_data:
             setting = settings_data.get(name)
             if len(kw.keys()) == 0:
-                return setting
+                return self.fmt_output(
+                    ctx, setting, self.settings.get(ctx.plugin.db_name, {}).get(name)
+                )
 
             # processing tagscript
             seed_variables = self._transform_seed_variables(kw)

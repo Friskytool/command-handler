@@ -15,6 +15,7 @@ class Tag(object):
 
         # the actual tagscript to be processed
         tagscript: str
+        uses: int
         options: List["TagArgument"]
 
     def __init__(self, *, state, data):
@@ -27,6 +28,7 @@ class Tag(object):
         self.description = data.get("description", "")
         self.author_id = data["author_id"]
         self.command_id = int(data["command_id"])
+        self.uses = data.get("uses", 0)
         self.options = [TagArgument(state=self._state, data=d) for d in data["options"]]
 
     def run(self, interpreter, seed_variables: dict, **kw) -> Optional[str]:

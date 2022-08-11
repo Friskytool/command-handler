@@ -13,16 +13,18 @@ class State(state.ConnectionState):
     if TYPE_CHECKING:
         from squid.bot import SquidBot
         from redis import Redis
+        from squid.http.client import HttpClient
 
         bot: SquidBot
         redis: Redis
         parsers: dict
+        http: HttpClient
 
     def __init__(self, bot, redis, **options):
         self.bot = bot
         self.redis = redis
         self.shard_count = 1
-
+        self.http = bot.http
         self.allowed_mentions = options.get("allowed_mentions")
 
         self.parsers = {}

@@ -3,7 +3,7 @@ from discord import guild, utils
 from discord.channel import _channel_factory
 from discord.enums import *
 from discord.enums import try_enum
-from discord.member import Member
+from .member import Member
 from discord.role import Role
 
 
@@ -93,14 +93,10 @@ class Guild(guild.Guild):
 
     @property
     def channels(self):
-        return self._channels
+        return self._channels.values()
 
     def get_channel(self, channel_id):
-        result = self._state._get(f"channel:{channel_id}")
-        if not result:
-            return None
-        factory, _ = _channel_factory(result["type"])
-        return factory(guild=self, state=self._state, data=result)
+        return self._state._get_guild_channel(channel_id)
 
     def afk_channel(self):
         channel_id = self._afk_channel_id
@@ -122,7 +118,8 @@ class Guild(guild.Guild):
         return self._members()
 
     def get_member(self, user_id):
-        result = self._state._get(f"member:{self.id}:{user_id}")
+        result = self._state._get(f"member.{self.id}.{user_id}")
+        result["user"] = self._state._get(f"user.{user_id}")
         if result:
             result = Member(guild=self, state=self._state, data=result)
         return result

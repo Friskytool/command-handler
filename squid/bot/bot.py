@@ -7,7 +7,7 @@ from expr.errors import Gibberish, NumberOverflow, UnknownPointer
 import requests
 from squid.bot.errors import CheckFailure, CommandFailed, SquidError
 from squid.models.commands import CreateApplicationCommand
-from squid.models.enums import ApplicationCommandOptionType
+from squid.models.enums import ApplicationCommandOptionType, ApplicationCommandType
 from squid.models.interaction import (
     ApplicationCommand,
     Interaction,
@@ -49,15 +49,16 @@ class SquidBot(object):
         }
         self.redis = redis
 
+        self.session = requests.Session()
+
+        self.http = HttpClient(token, session=self.session)
+
         self.state = State(self, self.redis)
         self.__plugins = {}
 
         self._commands = {}
         self._handlers = {}
         self._checks = []
-        self.session = requests.Session()
-
-        self.http = HttpClient(token, session=self.session)
 
         self.__dict__.update(
             {k[6:]: v for k, v in attrs.items() if k.startswith("squid_")}
@@ -84,6 +85,9 @@ class SquidBot(object):
         self.__plugins[plugin.qualified_name] = plugin
         plugin._inject(self)
         return plugin
+
+    def get_plugin(self, plugin_name: str) -> Optional[SquidPlugin]:
+        return self.__plugins.get(plugin_name, None)
 
     def remove_plugin(self, plugin_name: str) -> Optional[SquidPlugin]:
         plugin = self.__plugins.pop(plugin_name, None)
@@ -173,14 +177,17 @@ class SquidBot(object):
             embed.description += (
                 f"\n**`DEV TRACEBACK`**\n```py\n{exc.replace('`', c)}\n```"
             )
-        return InteractionResponse.channel_message(embed=embed, ephemeral=False)
+        return InteractionResponse.channel_message(embed=embed, ephemeral=True)
 
-    def _get_command(self, _interaction: "Interaction", cmd: "ApplicationCommand", names: list = None):
+    def _get_command(
+        self, _interaction: "Interaction", cmd: "ApplicationCommand", names: list = None
+    ):
         """Get the actual name of the command including subcommands
 
         Args:
             interaction (Interaction): The interaction for the command name
         """
+
         if names is None:
             names = [cmd.name]
             s = cmd.options
@@ -192,7 +199,7 @@ class SquidBot(object):
         parent = self
         name = ""
         for i in range(len(names)):
-            name = " ".join(names[: i + 1])
+            name = " ".join(names[: i + 1]).lower()
             parent = parent.get_command(name)
             if not parent:
                 return None

@@ -23,10 +23,10 @@ class CommandFailed(SquidError):
                 (f"```{fmt}\n" if fmt else "```\n")
                 + ("[ERROR] " if fmt == "cs" else "")
                 + "\n".join(args).replace("'", "′").replace("`", "′")
-                + "\n```"
+                + "\n```\n"
+                + ("*:bulb: " + opts.get("hint", "") + "*" if "hint" in opts else "")
             )
         self.title = opts.get("title", "Command Error")
-        print(self.message)
 
     def __str__(self):
         return self.message
@@ -57,6 +57,7 @@ class CheckFailure(CommandFailed):
     def __init__(self, *a, **kw):
         kw.setdefault("fmt", "diff")
         super().__init__(*a, **kw)
+
 
 class RequireCheckFailure(CheckFailure):
     ...

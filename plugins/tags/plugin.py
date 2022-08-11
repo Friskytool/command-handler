@@ -80,7 +80,6 @@ class Tags(SquidPlugin):
             return command
 
         if tag := self.get_tag(cmd.name, guild_id=interaction.guild_id):
-            print(tag)
             return self._handle_tag(tag)
 
         return None
@@ -95,13 +94,14 @@ class Tags(SquidPlugin):
     def handle_tag(
         self, ctx: CommandContext, tag: Tag, data: Dict[str, TagArgument] = None, **kw
     ):
-        print(data.values())
         seed = {
             "author": self.proper_cast(ApplicationCommandOptionType.user, ctx.author),
+            "user": self.proper_cast(ApplicationCommandOptionType.user, ctx.author),
             "channel": self.proper_cast(
                 ApplicationCommandOptionType.channel, ctx.channel
             ),
             "guild": tse.AttributeAdapter(ctx.guild),
+            "server": tse.AttributeAdapter(ctx.guild),
             **{
                 v: self.proper_cast(opt.type, k)
                 for opt, (v, k) in zip(tag.options, data.items())
@@ -110,6 +110,16 @@ class Tags(SquidPlugin):
 
         if "target" not in seed:
             seed["target"] = seed["author"]
+
+        with ctx.bot.redis as redis:
+            uses = redis.incr(f"tags:{ctx.guild_id}:{tag.name}:uses")
+
+        if "uses" not in seed:
+            seed["uses"] = tse.IntAdapter(uses or 0)
+
+        for option in tag.options:
+            if option.name not in seed:
+                seed[option.name] = tse.StringAdapter("")
 
         output = tag.run(self.engine, seed_variables=seed, **kw)
 
@@ -142,38 +152,53 @@ class Tags(SquidPlugin):
                         return ctx.respond(
                             content="Tag Looping is not allowed", ephemeral=True
                         )
-                    parts = command.split(" ")
-                    name = []
-                    while parts and ":" not in parts[0]:
-                        name.append(parts.pop(0))
-                    args = {}
-                    arg_name = ""
-                    arg_values = []
-                    while parts:
-                        if parts[0].endswith(":"):
-                            if arg_values:
-                                args[arg_name] = " ".join(arg_values)
-                                arg_name = ""
-                                arg_values = []
-                            arg_name = parts.pop(0)[:-1]
-                        else:
-                            if not arg_name:
-                                return ctx.respond(
-                                    "Tag command arguments must be in the format <name>: <argument>",
-                                    ephemeral=True,
-                                )
-                            arg_values.append(parts.pop(0))
-                    if arg_name and arg_values:
-                        args[arg_name] = " ".join(arg_values)
-                    if TYPE_CHECKING:
-                        from squid.bot.command import SquidCommand
-                    to_invoke: "SquidCommand" = self._og_get(None, None, names=name)
-                    print(to_invoke)
+                    if ":" in command:
+                        parts = command.split(" ")
+                        name = []
+                        while parts and ":" not in parts[0]:
+                            name.append(parts.pop(0))
+                        args = {}
+                        arg_name = ""
+                        arg_values = []
+                        while parts:
+                            if parts[0].endswith(":"):
+                                if arg_values:
+                                    args[arg_name] = " ".join(arg_values)
+                                    arg_name = ""
+                                    arg_values = []
+                                arg_name = parts.pop(0)[:-1]
+                            else:
+                                if not arg_name:
+                                    return ctx.respond(
+                                        "Tag command arguments must be in the format <name>: <argument>",
+                                        ephemeral=True,
+                                    )
+                                arg_values.append(parts.pop(0))
+                        if arg_name and arg_values:
+                            args[arg_name] = " ".join(arg_values)
+                    else:
+
+                        args = command.split(" ")
+                        a = list(args)
+                        cmd = None
+                        for i, _ in enumerate(args):
+                            if c := self._og_get(None, None, names=a[: i + 1]):
+                                cmd = c
+                                name = a[: i + 1]
+                                args = a[i + 1 :]
+
+                    to_invoke = self._og_get(None, None, names=name)
                     builder = CreateApplicationCommand.from_command(to_invoke)
                     base_options = builder.options
-                    for option in base_options:
-                        if v := args.get(option.name):
-                            option.value = v
+                    if type(args) == dict:
+                        for option in base_options:
+                            if v := args.get(option.name):
+                                option.value = v
+                    else:
+                        for option in base_options:
+                            if args:
+                                option.value = args.pop(0)
+
                     cmd = copy(ctx.command_data)
                     cmd.options = base_options
                     cmd.name = name[0]
@@ -204,7 +229,6 @@ class Tags(SquidPlugin):
         if not content and not embeds:
             content = "```xml\n< Tag recieved >\n```"
             hidden = True
-
         return ctx.respond(
             content=content,
             embeds=embeds,

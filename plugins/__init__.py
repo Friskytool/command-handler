@@ -7,8 +7,11 @@ from .timers import Timers, setup as timers_setup
 from .dankmemer import DankMemer, setup as dankmemer_setup
 from .giveaways import Giveaways, setup as giveaways_setup
 from .tags import Tags, setup as tags_setup
+from .special_commands import SpecialCommands, setup as commands_setup
+
 
 def setup(bot):
+    commands_setup(bot)
     utility_setup(bot)
     mathsolving_setup(bot)
     fun_setup(bot)

@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from inspect import ismethod
+import json
 import logging
 import os
 
@@ -44,7 +45,7 @@ if sentry_dsn := os.getenv("SENTRY_DSN"):
         traces_sample_rate=1.0,
     )
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 
 @lazy
@@ -105,9 +106,11 @@ def setup_engine():
 def setup_settings():
 
     # would put this on startup but cold-boot times are kiler
-    req = requests.get(os.getenv("API_URL") + "/static/settings.json")
-
-    settings = Settings.from_data(req.json())
+    #req = requests.get(os.getenv("API_URL") + "/static/settings.json")
+    with open("./settings.json") as fp:
+        data = json.load(fp)
+        
+    settings = Settings.from_data(data)
 
     return settings
 
@@ -130,6 +133,7 @@ def lazy_bot(cls=SquidBot):
         squid_dashboard_url=os.getenv("dashboard_url", "https://dashboard.squid.pink"),
         squid_application_id=int(os.getenv("APPLICATION_ID", 0)),
         squid_requirements={},
+        squid__last_result=None,
     )
     import plugins
 
@@ -139,13 +143,12 @@ def lazy_bot(cls=SquidBot):
     def check_plugins(ctx):
         with ctx.bot.redis as redis:
             plugins = redis.smembers(f"plugins:{ctx.guild_id}")
-
             if (
                 hasattr(ctx, "command")
                 and ctx.command.name != "dummy"
+                and not ctx.command.ignore_register
                 and ctx.command.cog.qualified_name.lower() not in plugins
             ):
-                print(plugins)
                 raise CommandFailed(
                     f"```diff\nMissing Plugin\n- {ctx.command.cog.qualified_name.title()}\n```\n You can enable plugins on the [dashboard]({ctx.bot.dashboard_url}/#/app/{ctx.guild_id}/) \n```",
                     raw=True,

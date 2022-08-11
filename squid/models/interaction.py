@@ -66,9 +66,21 @@ class ApplicationCommand(object):
             ApplicationCommandOption(state=self._state, data=option)
             for option in data.get("options", [])
         ]
+        self.target_id = data.get("target_id", None)
+
+    @property
+    def source(self):
+        if self.type == ApplicationCommandType.message:
+            return self.resolved["messages"][self.target_id]
+        elif self.type == ApplicationCommandType.user:
+            return self.resolved["users"][self.target_id]
+        else:
+            return None
 
     def __repr__(self):
-        return f"<ApplicationCommand id={self.id!r} name={self.name!r} type={self.type!r} resolved={self.resolved!r} options={self.options!r}>"
+        return (
+            f"<ApplicationCommand id={self.id!r} name={self.name!r} type={self.type!r}>"
+        )
 
     @property
     def guild(self):
@@ -86,6 +98,8 @@ class ApplicationCommandOption(object):
         self.required = data.get("required", False)
         self.type = ApplicationCommandOptionType(data["type"])
         self.value = data.get("value")
+        self.min_value = data.get("min_value", None)
+        self.max_value = data.get("max_value", None)
         self.options = [
             ApplicationCommandOption(state=self._state, data=option)
             for option in data.get("options", [])
@@ -95,7 +109,7 @@ class ApplicationCommandOption(object):
         return f"<ApplicationCommandOption name={self.name} type={self.type} value={self.value} options={self.options}>"
 
     def serialize(self) -> dict:
-        return {
+        d = {
             "name": self.name,
             "description": self.description,
             "required": self.required,
@@ -103,6 +117,13 @@ class ApplicationCommandOption(object):
             "options": [option.serialize() for option in self.options],
         }
 
+        if self.min_value:
+            d["min_value"] = self.min_value
+
+        if self.max_value:
+            d["max_value"] = self.max_value
+
+        return d
 
 class ApplicationCommandOptionChoice(object):
     def __init__(self, name: str, value: str):
@@ -158,8 +179,8 @@ class InteractionResponse(object):
     @classmethod
     def channel_message(
         cls,
-        tts: bool = False,
         content: str = None,
+        tts: bool = False,
         embed: Embed = None,
         embeds: List[Embed] = None,
         allowed_mentions: AllowedMentions = None,
@@ -265,7 +286,6 @@ class InteractionResponse(object):
 
         if isinstance(o, AllowedMentions):
             return o.to_dict()
-        print(o)
         return o.__dict__
 
     def to_dict(self):

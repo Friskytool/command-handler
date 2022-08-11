@@ -224,7 +224,7 @@ class Fun(SquidPlugin):
         )
 
     @command(name="choose")
-    def choose(self, ctx, *, choices):
+    def choose(self, ctx, choices):
         """Choose a random item out of the choices\nChoices can be seperated by \"|\" and \",\" """
 
         if "|" in choices:
@@ -259,7 +259,7 @@ class Fun(SquidPlugin):
         )
 
     @command(name="8ball")
-    def _8ball(self, ctx, *, question: str = ""):
+    def _8ball(self, ctx, question: str = ""):
         """Ask a question and recieve a response"""
         choice = random.choice(normal8ball)
         limit = 200
@@ -273,7 +273,7 @@ class Fun(SquidPlugin):
         )
 
     @command(name="programmer8ball", aliases=["p8ball"])
-    def p8ball(self, ctx, *, question: str = ""):
+    def p8ball(self, ctx, question: str = ""):
         """ "Ask a question and get a programmer-like response"""
         choice = random.choice(programming8ball)
         limit = 200

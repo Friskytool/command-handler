@@ -4,47 +4,20 @@ import re
 import uuid
 from datetime import timedelta
 from discord import ButtonStyle, Color, Embed
-from discord.ui import Button
 from squid.bot import CommandContext, SquidPlugin, command
-from squid.bot.context import ComponentContext
 from squid.bot.errors import CommandFailed
 from squid.models.interaction import InteractionResponse
-from squid.models.views import ButtonData, View
 from squid.utils import discord_timestamp, now, parse_time
 from squid.bot.checks import has_role
 from discord.ext import commands
-
-
-class ReminderView(View):
-    KEY = "timer-store"
-
-    def __init__(self, *a, key: str = "", cog=None, **k):
-        super().__init__(cog=cog)
-        key = ButtonData(self.KEY, key=key)
-        self.add_item(Button(*a, custom_id=key.store(), **k))
-
-    @staticmethod
-    def callback(
-        ctx: ComponentContext,
-        key: str,
-    ):
-        print(ctx.author.id)
-        with ctx.bot.redis as db:
-            db.sadd(key, ctx.author.id)
-        return InteractionResponse.channel_message(
-            embed=Embed(
-                description="You will be reminded when the timer ends",
-                color=Color.green(),
-            ),
-            ephemeral=True,
-        )
+from .views import ReminderView
 
 
 class Timers(SquidPlugin):
     def __init__(self, bot):
         self.bot = bot
         self.link_re = re.compile(
-            r"https:\/\/discord.com\/channels\/(\d*)\/(\d*)\/(\d*)"
+            r"https:\/\/(?:canary\.)?discord.com\/channels\/(\d*)\/(\d*)\/(\d*)"
         )
 
     @command(name="timer")
@@ -55,7 +28,7 @@ class Timers(SquidPlugin):
     @timer.subcommand(name="start")
     @commands.check(has_role)
     def start(
-        self, ctx: CommandContext, *, time: str, title: str = "Timer"
+        self, ctx: CommandContext, time: str, title: str = "Timer"
     ) -> InteractionResponse:
         """
         Set a timer for a given time
@@ -79,8 +52,8 @@ class Timers(SquidPlugin):
             time=f"<t:{stamp}:R>",
             stamp=stamp,
             title=title,
-            author=ctx.author.mention,
-            channel=ctx.channel.mention,
+            author=ctx.author,
+            channel=ctx.channel,
         )
         message = ctx.send(
             embed=Embed(
@@ -95,12 +68,10 @@ class Timers(SquidPlugin):
                 label="Remind Me",
             ),
         )
-        print(message)
         message[
             "link"
         ] = f"https://discord.com/channels/{ctx.guild_id}{ctx.channel_id}/{message['id']}"
 
-        print(ctx.setting("end_message"))
         with ctx.bot.db as db:
             db.timers.insert_one(
                 {
@@ -114,9 +85,13 @@ class Timers(SquidPlugin):
                     "active": True,
                     "title": title,
                     "icon_url": ctx.author.avatar.url,
-                    "end_message": ctx.setting("end_message"),
+                    "end_message": ctx.setting("end_message", **tkwargs),
                 }
             )
+
+        with ctx.bot.redis as redis:
+            redis.zincrby("timers", stamp, store_key)
+
         return ctx.respond(
             embed=Embed(
                 description=f"Started a timer for `{delta}`",
@@ -157,8 +132,6 @@ class Timers(SquidPlugin):
 
             if not data:
                 raise CommandFailed(f"I cannot find any timers matching those filters")
-
-            print(json.dumps(list(data), indent=3, default=str))
             description = ""
             if channel:
                 description += f"In **<#{channel.id}>**"
@@ -186,47 +159,80 @@ class Timers(SquidPlugin):
 
     @timer.subcommand(name="end")
     @commands.check(has_role)
-    def end(self, ctx: CommandContext, *, link: str) -> InteractionResponse:
+    def end(self, ctx: CommandContext, link: str) -> InteractionResponse:
         """
         Stop a timer
         """
         match = self.link_re.match(link)
         if not match:
-            raise CommandFailed("Invalid link")
-
-        _, channel_id, message_id = match.groups()
+            if link.isdigit():
+                message_id = link
+            else:
+                raise CommandFailed("Invalid link")
+        else:
+            _, _, message_id = match.groups()
 
         with ctx.bot.db as db:
-            x = db.timers.find_one_and_update(
+            if doc := db.timers.find_one_and_update(
                 {
                     "guild_id": str(ctx.guild_id),
-                    "channel_id": str(channel_id),
                     "message_id": str(message_id),
                 },
                 {"$set": {"end": now()}},
+            ):
+                key = doc["store_key"]
+            else:
+                key = None
+
+        if key is None:
+            raise CommandFailed("I cannot find that timer")
+        else:
+            with ctx.bot.redis as redis:
+                amount = redis.zscore("timers", key)
+                redis.zincrby("timers", -amount, key)
+
+            return ctx.respond(
+                embed=Embed(title="Timer Ended", color=self.bot.colors["primary"]),
+                ephemeral=True,
             )
 
-            if x and x["active"]:
-                return ctx.respond(
-                    embed=Embed(
-                        description=f"Stopped timer for `{x['title']}`",
-                        color=self.bot.colors["primary"],
-                    ),
-                    ephemeral=True,
-                )
-            elif x and x["active"]:
-                return ctx.respond(
-                    embed=Embed(
-                        description=f"Timer for `{x['title']}` already ended",
-                        color=self.bot.colors["secondary"],
-                    ),
-                    ephemeral=True,
-                )
+    @timer.subcommand(name="cancel")
+    @commands.check(has_role)
+    def cancel(self, ctx: CommandContext, link: str) -> InteractionResponse:
+        """
+        Cancel a timer
+
+        Does the same as `end` but will not ping the users
+        """
+        match = self.link_re.match(link)
+        if not match:
+            if link.isdigit():
+                message_id = link
             else:
-                raise CommandFailed("I cannot find that timer")
+                raise CommandFailed("Invalid link")
+        else:
+            _, _, message_id = match.groups()
 
+        with ctx.bot.db as db:
+            if doc := db.timers.find_one_and_update(
+                {
+                    "guild_id": str(ctx.guild_id),
+                    "message_id": str(message_id),
+                },
+                {"$set": {"end": now(), "active": False}},
+            ):
+                key = doc["store_key"]
+            else:
+                key = None
 
-def setup(bot):
-    timers = Timers(bot)
-    bot.add_plugin(timers)
-    bot.add_handler(ReminderView(cog=timers))
+        if key is None:
+            raise CommandFailed("I cannot find that timer")
+        else:
+            with ctx.bot.redis as redis:
+                amount = redis.zscore("timers", key)
+                redis.zincrby("timers", -amount, key)
+
+            return ctx.respond(
+                embed=Embed(title="Timer Ended", color=self.bot.colors["primary"]),
+                ephemeral=True,
+            )

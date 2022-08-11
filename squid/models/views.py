@@ -1,11 +1,10 @@
+import os
 from typing import List, Dict, Any
 from discord.ui import View as _View, Button
 from discord.ui.view import _ViewWeights, Item
 from itertools import groupby
 import json
 from typing import TYPE_CHECKING
-from discord import Color, Embed
-from squid.models.interaction import InteractionResponse
 
 
 if TYPE_CHECKING:
@@ -16,9 +15,6 @@ class ButtonData:
     def __init__(self, typ, **data: dict):
         self.typ = typ
         self.data = data
-
-    def get_data(self):
-        print(f"ButtonData.get_data: {self.typ} -> {self.data}")
 
     def store(self):
         return json.dumps(self.__dict__)
@@ -37,9 +33,15 @@ class View(_View):
     KEY: str
 
     def __init__(self, cog=None):
-        self.children = []
+        # self.children = []
         self._View__weights = _ViewWeights([])
-
+        self.__timeout = 0
+        self._children = self._init_children()
+        self.__weights = _ViewWeights(self._children)
+        self.id: str = os.urandom(16).hex()
+        self.__cancel_callback = None
+        self.__timeout_expiry = None
+        self.__timeout_task = None
         self.cog = cog
 
     def to_components(self) -> List[Dict[str, Any]]:

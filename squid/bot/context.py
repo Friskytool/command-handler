@@ -1,5 +1,5 @@
 from typing import TYPE_CHECKING, Callable, Optional, Type
-from discord import Role, User, utils
+from discord import Message, Role, User, utils
 from sentry_sdk.api import capture_exception, push_scope
 from squid.bot.errors import SquidError
 from squid.models.abc import Messageable
@@ -45,6 +45,10 @@ class SquidContext(Messageable, object):
     def plugin(self) -> "Optional[Type[PluginMeta]]":
         raise NotImplementedError
 
+    @plugin.setter
+    def plugin(self, cog):
+        raise NotImplementedError
+    
     @property
     def token(self) -> str:
         return self._token
@@ -132,11 +136,22 @@ class CommandContext(SquidContext):
         self.command: "SquidCommand" = bot._get_command(interaction, command)
 
     @property
+    def source(self) -> str:
+        return Message(
+            state=self.bot.state, channel=self.channel, data=self.command_data.source
+        )
+
+    @property
     def plugin(self):
         if self.command:
             return self.command.cog
         else:
             return None
+
+    @plugin.setter
+    def set_plugin(self, parent):
+        if self.command:
+            self.command.cog = parent
 
     def _resolve_id(self, typ: str):
         """Given an id we need to pull the data from resolved if present
@@ -150,7 +165,6 @@ class CommandContext(SquidContext):
 
         def resolver(_id: str):
             resolved = self.command_data.resolved
-            print(typ)
             if (
                 typ == "user"
             ):  # special case handling where we can pull data from users & members
@@ -208,7 +222,7 @@ class CommandContext(SquidContext):
             ApplicationCommandOptionType.mentionable: self._resolve_id(
                 "user"
             ),  # TODO: resolve to proper types
-            ApplicationCommandOptionType.number: float,
+            ApplicationCommandOptionType.number: int,
         }
 
         if i.type in cast and i.value:
@@ -273,6 +287,12 @@ class ComponentContext(SquidContext):
             return self.handler.cog
         else:
             return None
+
+    @plugin.setter
+    def plugin(self, cog):
+        if self.handler:
+            self.handler.cog = cog
+            
 
     def kwargs(self) -> dict:
         return self.data.data
