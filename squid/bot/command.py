@@ -1,4 +1,3 @@
-from typing_extensions import Self
 from squid._types import _BaseCommand
 from typing import Callable, Any, Optional, List, Union, Dict, Tuple, Type, TypeVar
 import inspect
@@ -138,7 +137,7 @@ class SquidCommand(_BaseCommand):
         self.cog = kwargs.get("cog")
         
         self.checks: List[Callable] = checks
-        self._commands: Dict[str, Type[Self]] = {}
+        self._commands: Dict[str, Type["SquidCommand"]] = {}
 
     def __repr__(self):
         return f"<SquidCommand name={self.name!r} qualified_name={self.qualified_name!r} commands={self._commands!r}>"
@@ -380,14 +379,14 @@ class SquidCommand(_BaseCommand):
     def commands(self):
         return self._commands.values()
 
-    def add_command(self, command: Type[Self]):
+    def add_command(self, command: Type["SquidCommand"]):
         self._commands[command.qualified_name.lower()] = command
         return command
 
     def remove_command(self, name: str):
         return self._commands.pop(name.lower(), None)
 
-    def subcommand(self, *, cls: Type[Self] = None, **attrs: Any):
+    def subcommand(self, *, cls: Type["SquidCommand"] = None, **attrs: Any):
         if cls is None:
             cls = type(self)
 

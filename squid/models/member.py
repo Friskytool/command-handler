@@ -23,3 +23,8 @@ class Member(Messageable, member.Member):
     @property
     def channel_id(self):
         return self.http.start_private_message(self.id)["id"]
+
+    @property
+    def avatar_url(self):
+        # backwards compatibility with older dpy deps
+        return self.avatar.url

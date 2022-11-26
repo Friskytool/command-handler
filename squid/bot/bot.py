@@ -211,8 +211,7 @@ class SquidBot(object):
                 if ctx.handler is not None:
                     if self.can_run(ctx):
                         sentry_sdk.set_context(
-                            "message-component",
-                            {"name": ctx.data.typ, "ctx": ctx},
+                            "message-component", {"name": ctx.data.typ, "ctx": ctx}
                         )
                         return ctx.invoke(ctx.handler)
                     raise CheckFailure("This component is disabled")
@@ -258,8 +257,7 @@ class SquidBot(object):
             if ctx.command is not None:
                 if self.can_run(ctx):
                     sentry_sdk.set_context(
-                        "command",
-                        {"name": ctx.command.qualified_name, "ctx": ctx},
+                        "command", {"name": ctx.command.qualified_name, "ctx": ctx}
                     )
                     return ctx.command.invoke(ctx)
                 raise CheckFailure("This command is disabled")
@@ -274,8 +272,7 @@ class SquidBot(object):
             if ctx.handler is not None:
                 if self.can_run(ctx):
                     sentry_sdk.set_context(
-                        "message-component",
-                        {"name": ctx.data.typ, "ctx": ctx},
+                        "message-component", {"name": ctx.data.typ, "ctx": ctx}
                     )
                     return ctx.invoke(ctx.handler)
                 raise CheckFailure("This component is disabled")

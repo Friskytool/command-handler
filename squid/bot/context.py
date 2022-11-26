@@ -63,7 +63,7 @@ class SquidContext(Messageable, object):
     def author(self):
         if self.guild:
             return Member(state=self.bot.state, guild=self.guild, data=self._user)
-        return User(state=self.bot.state, data=self._user)
+        return User(state=self.bot.state, data=self._user['user'])
 
     @utils.cached_property
     def channel(self):

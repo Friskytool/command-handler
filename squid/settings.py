@@ -46,7 +46,9 @@ class Settings(object):
 
         return cls(data)
 
-    def _transform_seed_variables(self, seed_variables: dict) -> Dict[str, tse.Adapter]:
+    def _transform_seed_variables(
+        self, seed_variables: dict
+    ) -> Dict[str, "tse.Adapter"]:
         data = {}
         for k, v in seed_variables.items():
             if isinstance(v, str):

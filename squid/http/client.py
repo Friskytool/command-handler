@@ -37,19 +37,12 @@ class HttpClient(_HTTPClient):
         )
 
     def request(
-        self,
-        route: Route,
-        *,
-        files: Optional[Sequence[File]] = [],
-        **kwargs: Any,
+        self, route: Route, *, files: Optional[Sequence[File]] = [], **kwargs: Any
     ):
-        bucket = route.bucket
         method = route.method
         url = route.url
 
-        headers: Dict[str, str] = {
-            "User-Agent": self.user_agent,
-        }
+        headers: Dict[str, str] = {"User-Agent": self.user_agent}
 
         if self.token is not None:
             headers["Authorization"] = f"Bot {self.token}"
@@ -66,6 +59,12 @@ class HttpClient(_HTTPClient):
             headers["X-Audit-Log-Reason"] = _uriquote(reason, safe="/ ")
 
         kwargs["headers"] = headers
+
+        # TODO: #1 IMPLEMENT PROXY
+        # if self.proxy is not None:
+        #     kwargs["proxy"] = self.proxy
+        # if self.proxy_auth is not None:
+        #     kwargs["proxy_auth"] = self.proxy_auth
 
         for tries in range(5):
             if files:

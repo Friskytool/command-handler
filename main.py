@@ -31,7 +31,6 @@ from squid.bot import SquidBot
 from squid.bot.errors import CommandFailed
 from squid.models.functions import lazy
 from squid.models.interaction import Interaction
-from squid.models.views import View
 from squid.settings import Settings
 
 __version__ = "0.0.1"
@@ -106,10 +105,10 @@ def setup_engine():
 def setup_settings():
 
     # would put this on startup but cold-boot times are kiler
-    #req = requests.get(os.getenv("API_URL") + "/static/settings.json")
+    # req = requests.get(os.getenv("API_URL") + "/static/settings.json")
     with open("./settings.json") as fp:
         data = json.load(fp)
-        
+
     settings = Settings.from_data(data)
 
     return settings

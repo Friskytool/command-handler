@@ -23,6 +23,7 @@ SOFTWARE.
 """
 
 from typing import Optional
+import TagScriptEngine
 
 from TagScriptEngine import Interpreter, Block, Context
 
