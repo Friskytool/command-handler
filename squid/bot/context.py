@@ -48,7 +48,7 @@ class SquidContext(Messageable, object):
     @plugin.setter
     def plugin(self, cog):
         raise NotImplementedError
-    
+
     @property
     def token(self) -> str:
         return self._token
@@ -63,7 +63,7 @@ class SquidContext(Messageable, object):
     def author(self):
         if self.guild:
             return Member(state=self.bot.state, guild=self.guild, data=self._user)
-        return User(state=self.bot.state, data=self._user['user'])
+        return User(state=self.bot.state, data=self._user["user"])
 
     @utils.cached_property
     def channel(self):
@@ -292,7 +292,6 @@ class ComponentContext(SquidContext):
     def plugin(self, cog):
         if self.handler:
             self.handler.cog = cog
-            
 
     def kwargs(self) -> dict:
         return self.data.data
